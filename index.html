@@ -104,6 +104,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .banner{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px}
 .banner.info{background:#eef3ff;color:#2f4ab0} .banner.warn{background:#fff4e5;color:#8a4b00} .banner.err{background:#fdeaea;color:var(--err)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d1b22;color:#fff;padding:10px 16px;border-radius:9px;z-index:60;font-size:13px;display:none;max-width:90vw}
+body:not(.admin) #nav a[data-v=log], body:not(.admin) #nav a[data-v=settings]{display:none}
 .modal{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:70}
 .modal.on{display:flex}
 .modal .card{width:min(460px,92vw)}
@@ -479,15 +480,15 @@ window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxprS8AS0WNdJlo7sRR
       const showForm = (msg) => {
         const g = gateEl();
         g.innerHTML = `<div class="c"><h1>BT Tour | Bán vé</h1>
-          <p>Nhập tên của bạn${needPass ? ' và mật khẩu vào web' : ''} để gửi yêu cầu. Quản lý sẽ duyệt cho bạn <b>xem</b> hoặc <b>chỉnh sửa</b>.</p>
-          <label>Tên của bạn</label><input id="gName" maxlength="40" placeholder="Ví dụ: Lan – phòng vé" value="${esc(ls.get('btName'))}">
-          ${needPass ? '<label>Mật khẩu vào web</label><input id="gPass" type="password" autocomplete="current-password">' : ''}
+          <p>Nhập tên đăng nhập và mật khẩu Quản lý đã đưa cho bạn. Lần đầu cần Quản lý duyệt 1 lần; lần sau vào thẳng, máy nào cũng được.</p>
+          <label>Tên đăng nhập</label><input id="gName" maxlength="40" placeholder="Ví dụ: Lan – phòng vé" autocomplete="username" value="${esc(ls.get('btName'))}">
+          <label>Mật khẩu</label><input id="gPass" type="password" autocomplete="current-password">
           <div class="err" id="gErr">${esc(msg || '')}</div>
-          <div class="row"><button class="pri" id="gSend">Gửi yêu cầu</button></div>
+          <div class="row"><button class="pri" id="gSend">Vào web</button></div>
           <div style="margin-top:14px;border-top:1px solid #eee;padding-top:8px"><button class="lnk" id="gAdmin">Tôi là quản lý</button></div></div>`;
         const send = async () => {
-          const name = g.querySelector('#gName').value.trim().replace(/\s+/g, ' '); const pass = needPass ? g.querySelector('#gPass').value : '';
-          if (name.length < 2) { g.querySelector('#gErr').textContent = 'Nhập tên ít nhất 2 ký tự'; return; }
+          const name = g.querySelector('#gName').value.trim().replace(/\s+/g, ' '); const pass = g.querySelector('#gPass').value;
+          if (name.length < 2) { g.querySelector('#gErr').textContent = 'Nhập tên đăng nhập (ít nhất 2 ký tự)'; return; }
           g.querySelector('#gSend').disabled = true; g.querySelector('#gErr').textContent = '';
           try { const r = await call({ op: 'request', name, pass }); ls.set('btName', name); myName = name; okRole(r.role) ? finish(r) : showWait(r); }
           catch (e) { g.querySelector('#gErr').textContent = e.message || e.code; g.querySelector('#gSend').disabled = false; }
@@ -495,7 +496,7 @@ window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxprS8AS0WNdJlo7sRR
         g.querySelector('#gSend').onclick = send;
         g.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') send(); });
         g.querySelector('#gAdmin').onclick = showAdmin;
-        setTimeout(() => (g.querySelector('#gName').value ? (g.querySelector('#gPass') || g.querySelector('#gName')) : g.querySelector('#gName')).focus(), 30);
+        setTimeout(() => (g.querySelector('#gName').value ? g.querySelector('#gPass') : g.querySelector('#gName')).focus(), 30);
       };
       const showAdmin = () => {
         const g = gateEl();
@@ -516,9 +517,9 @@ window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxprS8AS0WNdJlo7sRR
         const g = gateEl();
         const denied = r.role === 'denied';
         g.innerHTML = `<div class="c"><h1>${denied ? 'Yêu cầu bị từ chối' : 'Đã gửi yêu cầu'}</h1>
-          <p>${denied ? 'Quản lý chưa cho máy này vào web. Liên hệ quản lý nếu cần, rồi gửi lại.' : `<span class="spin"></span>Chào <b>${esc(r.name || myName)}</b>, đang chờ quản lý duyệt. Trang sẽ tự mở khi được duyệt — không cần tải lại.`}</p>
-          <div class="row">${denied ? '<button class="pri" id="wAgain">Gửi lại yêu cầu</button>' : ''}<button class="lnk" id="wAdmin">Tôi là quản lý</button></div></div>`;
-        if (denied) g.querySelector('#wAgain').onclick = () => showForm();
+          <p>${denied ? 'Quản lý chưa cho tài khoản này vào web. Liên hệ quản lý nếu cần.' : `<span class="spin"></span>Chào <b>${esc(r.name || myName)}</b>, ${r.newDevice ? 'máy mới của tài khoản này đang chờ quản lý duyệt (chỉ 1 lần).' : 'đang chờ quản lý duyệt.'} Trang sẽ tự mở khi được duyệt — không cần tải lại.`}</p>
+          <div class="row"><button id="wAgain">Đăng nhập tài khoản khác</button><button class="lnk" id="wAdmin">Tôi là quản lý</button></div></div>`;
+        g.querySelector('#wAgain').onclick = () => showForm();
         g.querySelector('#wAdmin').onclick = showAdmin;
         clearInterval(timer);
         if (!denied) timer = setInterval(async () => { try { const x = await call({ op: 'me' }); if (okRole(x.role)) finish(x); else if (x.role !== 'pending') { clearInterval(timer); x.role === 'none' ? showForm() : showWait(x); } } catch (e) {} }, 5000);
@@ -535,37 +536,58 @@ window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxprS8AS0WNdJlo7sRR
   }
   const gateP = gate().then(() => { startSync(); wire(); });
 
-  /* ---------- quản lý: duyệt người xem / người sửa ---------- */
+  /* ---------- quản lý: duyệt tài khoản ---------- */
   let accList = [], seenPending = null;
+  const needsAct = a => a.role === 'pending' || a.nNew > 0;
   async function loadAcc(silent) {
     try { const j = await call({ op: 'accList' }); accList = j.list || []; } catch (e) { if (!silent) say('Không tải được danh sách: ' + (e.message || e.code)); return; }
-    const pend = accList.filter(a => a.role === 'pending');
+    const pend = accList.filter(needsAct);
     const b = document.getElementById('btLogin'); if (b) b.innerHTML = '👥 Duyệt truy cập' + (pend.length ? `<span class="btBadge">${pend.length}</span>` : '');
-    const ids = pend.map(a => a.dev).join(',');
-    if (seenPending !== null && pend.some(a => !seenPending.includes(a.dev))) say(`🔔 ${pend.filter(a => !seenPending.includes(a.dev)).map(a => a.name).join(', ')} xin vào web — bấm "Duyệt truy cập"`, 8000);
-    seenPending = pend.map(a => a.dev);
-    if (document.getElementById('btAcc')) renderAcc();
+    const sig = a => a.key + ':' + a.role + ':' + a.nNew;
+    if (seenPending !== null) { const fresh = pend.filter(a => !seenPending.includes(sig(a))); if (fresh.length) say(`🔔 ${fresh.map(a => a.name).join(', ')} chờ duyệt — bấm "Duyệt truy cập"`, 8000); }
+    seenPending = pend.map(sig);
+    const m = document.getElementById('btAcc'); if (m && !(document.activeElement && m.contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON')) renderAcc();
   }
-  const fmtT = t => t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+  const fmtT = t => t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—';
   function renderAcc() {
     addCss(); let m = document.getElementById('btAcc');
     if (!m) { m = document.createElement('div'); m.id = 'btAcc'; m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
-    const order = { pending: 0, editor: 1, viewer: 2, admin: 3, denied: 4 };
-    const rows = accList.slice().sort((a, b) => (order[a.role] - order[b.role]) || (b.at - a.at));
-    const btn = (a, r, t, cls = '') => a.role === r ? '' : `<button class="${cls}" data-d="${esc(a.dev)}" data-r="${r}">${t}</button>`;
+    const order = { pending: 0, editor: 2, viewer: 3, admin: 4, denied: 5 };
+    const rows = accList.slice().sort((a, b) => (needsAct(b) - needsAct(a)) || (order[a.role] - order[b.role]) || (b.seen - a.seen));
+    const meKey = (myName || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const btn = (a, r, t, cls = '') => a.role === r ? '' : `<button class="${cls}" data-k="${esc(a.key)}" data-r="${r}">${t}</button>`;
     m.innerHTML = `<div class="c"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Duyệt truy cập</h2><button id="accX">Đóng</button></div>
-      <p style="margin:0;color:#666;font-size:13px">Người mới nhập tên + mật khẩu vào web sẽ hiện ở đây. Chọn <b>Cho xem</b> (chỉ xem sơ đồ, đơn, thống kê) hoặc <b>Cho sửa</b> (bán vé, đổi ghế, làm mới Google Sheet). Đổi quyền / gỡ bất cứ lúc nào — máy đó tự đổi theo trong khoảng 15 giây.</p>
-      <table><tr><th>Tên</th><th>Quyền</th><th>Xin lúc</th><th></th></tr>
-      ${rows.length ? rows.map(a => `<tr><td><b>${esc(a.name)}</b>${a.dev === devId ? ' <span style="color:#888">(máy này)</span>' : ''}${a.by && a.role !== 'pending' ? `<div style="font-size:11.5px;color:#888">duyệt bởi ${esc(a.by)} · ${fmtT(a.decided)}</div>` : ''}</td>
-        <td><span class="tag t-${a.role}">${ROLE_LABEL[a.role] || a.role}</span></td><td style="font-size:12px;color:#666">${fmtT(a.at)}</td>
-        <td style="text-align:right">${a.dev === devId ? '' : btn(a, 'viewer', 'Cho xem', a.role === 'pending' ? 'pri' : '') + btn(a, 'editor', 'Cho sửa', a.role === 'pending' ? 'pri' : '') + btn(a, 'admin', 'Quản lý') + (a.role === 'pending' ? btn(a, 'denied', 'Từ chối') : btn(a, 'remove', 'Gỡ'))}</td></tr>`).join('')
-      : '<tr><td colspan="4" style="color:#888">Chưa có ai xin vào.</td></tr>'}</table></div>`;
+      <p style="margin:0;color:#666;font-size:13px">Mỗi người 1 tài khoản. Duyệt 1 lần là xong — lần sau họ vào bằng tên + mật khẩu trên máy nào cũng được. Mặc định dùng <b>mật khẩu chung</b> của web; muốn chặt hơn thì bấm <b>Đặt MK riêng</b> cho từng người.</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;padding:10px;background:#faf9f7;border:1px solid #eee;border-radius:10px">
+        <b style="font-size:13px">➕ Thêm tài khoản:</b><input id="naName" placeholder="Tên đăng nhập" style="flex:1;min-width:120px;padding:7px 9px;border:1px solid #d6d3cd;border-radius:8px;font:inherit">
+        <select id="naRole" style="padding:7px;border:1px solid #d6d3cd;border-radius:8px;font:inherit"><option value="viewer">Chỉ xem</option><option value="editor">Được sửa</option><option value="admin">Quản lý</option></select>
+        <input id="naPw" placeholder="MK riêng (để trống = MK chung)" style="flex:1;min-width:140px;padding:7px 9px;border:1px solid #d6d3cd;border-radius:8px;font:inherit">
+        <button class="pri" id="naGo">Thêm</button></div>
+      <table><tr><th>Tài khoản</th><th>Quyền</th><th>Vào lần cuối</th><th></th></tr>
+      ${rows.length ? rows.map(a => { const me = a.key === meKey; const pend = a.role === 'pending';
+        return `<tr><td><b>${esc(a.name)}</b>${me ? ' <span style="color:#888">(bạn)</span>' : ''}
+          <div style="font-size:11.5px;color:#888">${a.nDev} máy · ${a.hasPass ? 'MK riêng' : 'MK chung'}${pend ? '' : a.by ? ` · duyệt bởi ${esc(a.by)}` : ''}</div>
+          ${a.nNew && !pend ? `<div style="font-size:12px;color:#92400e;margin-top:2px">🔔 ${a.nNew} máy mới chờ duyệt</div>` : ''}</td>
+        <td><span class="tag t-${a.role}">${ROLE_LABEL[a.role] || a.role}</span></td><td style="font-size:12px;color:#666">${pend ? 'xin lúc ' + fmtT(a.at) : fmtT(a.seen)}</td>
+        <td style="text-align:right">${a.nNew && !pend ? `<button class="pri" data-k="${esc(a.key)}" data-r="approveNew">Duyệt máy mới</button><button data-k="${esc(a.key)}" data-r="rejectNew">Từ chối</button><br>` : ''}
+          ${me ? '' : btn(a, 'viewer', 'Cho xem', pend ? 'pri' : '') + btn(a, 'editor', 'Cho sửa', pend ? 'pri' : '') + btn(a, 'admin', 'Quản lý') + (pend ? btn(a, 'denied', 'Từ chối') : btn(a, 'remove', 'Gỡ'))}
+          ${me ? '' : `<button data-k="${esc(a.key)}" data-r="setPass">${a.hasPass ? 'Đổi MK riêng' : 'Đặt MK riêng'}</button>${a.hasPass ? `<button data-k="${esc(a.key)}" data-r="resetPass" title="Quay về dùng mật khẩu chung">Bỏ MK riêng</button>` : ''}`}</td></tr>`; }).join('')
+      : '<tr><td colspan="4" style="color:#888">Chưa có ai.</td></tr>'}</table></div>`;
     m.querySelector('#accX').onclick = () => m.remove();
-    m.querySelectorAll('button[data-d]').forEach(b => b.onclick = async () => {
-      const a = accList.find(x => x.dev === b.dataset.d); const r = b.dataset.r;
-      if ((r === 'remove' || r === 'admin') && !confirm(r === 'remove' ? `Gỡ quyền của ${a.name}? Máy đó phải gửi yêu cầu lại.` : `Cho ${a.name} quyền Quản lý (duyệt được người khác)?`)) return;
+    m.querySelector('#naGo').onclick = async () => {
+      const name = m.querySelector('#naName').value.trim(); if (name.length < 2) { say('Nhập tên tài khoản'); return; }
+      try { const j = await call({ op: 'accAdd', name, role: m.querySelector('#naRole').value, value: m.querySelector('#naPw').value.trim() }); accList = j.list || accList; renderAcc(); say(`Đã thêm tài khoản ${name} — họ đăng nhập là vào thẳng, không cần chờ duyệt`); }
+      catch (e) { say(e.message || e.code); }
+    };
+    m.querySelectorAll('button[data-k]').forEach(b => b.onclick = async () => {
+      const a = accList.find(x => x.key === b.dataset.k); const r = b.dataset.r;
+      const ask = { remove: `Gỡ tài khoản ${a.name}? Mọi máy của họ sẽ bị thoát, muốn vào lại phải xin duyệt lại.`, admin: `Cho ${a.name} quyền Quản lý (duyệt được người khác)?`,
+        resetPass: `Bỏ mật khẩu riêng của ${a.name}? Họ sẽ đăng nhập bằng mật khẩu chung của web.` }[r];
+      if (ask && !confirm(ask)) return;
+      let value;
+      if (r === 'setPass') { value = prompt(`Mật khẩu riêng cho ${a.name} (ít nhất 4 ký tự). Nhớ báo lại cho họ:`); if (!value) return; }
       b.disabled = true;
-      try { const j = await call({ op: 'accSet', target: a.dev, role: r }); accList = j.list || accList; renderAcc(); loadAcc(true); }
+      try { const j = await call({ op: 'accSet', target: a.key, role: r, value }); accList = j.list || accList; renderAcc(); loadAcc(true); if (r === 'setPass') say(`Đã đặt mật khẩu riêng cho ${a.name}`); }
       catch (e) { say(e.message || e.code); b.disabled = false; }
     });
   }
@@ -573,7 +595,7 @@ window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxprS8AS0WNdJlo7sRR
     const b = document.getElementById('btLogin'); if (!b) return;
     b.style.display = '';
     if (role === 'admin') { b.textContent = '👥 Duyệt truy cập'; b.onclick = () => { renderAcc(); loadAcc(); }; loadAcc(true); setInterval(() => { if (!document.hidden) loadAcc(true); }, 15000); }
-    else { b.textContent = 'Thoát'; b.title = 'Thoát khỏi máy này (lần sau phải xin duyệt lại)'; b.onclick = () => { if (confirm('Thoát khỏi máy này? Lần sau mở web phải gửi yêu cầu và chờ duyệt lại.')) { ls.set('btTok', ''); location.reload(); } }; }
+    else { b.textContent = 'Thoát'; b.title = 'Thoát tài khoản trên máy này'; b.onclick = async () => { if (confirm('Thoát tài khoản trên máy này? Lần sau vào lại bằng tên + mật khẩu của bạn.')) { try { await call({ op: 'logout' }); } catch (e) {} ls.set('btTok', ''); location.reload(); } }; }
     // định kỳ kiểm tra quyền (bị gỡ / đổi quyền → tải lại)
     setInterval(async () => { if (document.hidden) return; try { const x = await call({ op: 'me' }); if (x.role !== role) location.reload(); } catch (e) {} }, 15000);
   }
@@ -2021,7 +2043,7 @@ function renderSheetStatus(){
   $('gsHist').innerHTML = hist.length ? `<div class="muted" style="margin-bottom:4px"><b>Lịch sử làm mới</b></div>` + hist.slice(0, 3).map(h => {
       const ch = histText(h);
       return `<div style="display:flex;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)"><span style="min-width:96px;font-variant-numeric:tabular-nums">${fmtTime(h.at)}</span><b style="min-width:140px">${esc(nameOf(h.by, h.byName))}</b><span class="muted">${esc(ch)}</span></div>`;
-    }).join('') + (hist.length > 3 ? `<a href="#log" class="small">Xem tất cả ${hist.length} lần ở tab Lịch sử →</a>` : '') : '<span class="muted">Chưa làm mới lần nào.</span>';
+    }).join('') + (hist.length > 3 && S.isAdmin ? `<a href="#log" class="small">Xem tất cả ${hist.length} lần ở tab Lịch sử →</a>` : '') : '<span class="muted">Chưa làm mới lần nào.</span>';
   renderIssues();
 }
 
@@ -2134,7 +2156,7 @@ function renderAllViews(){
   if (v==='settings' && !document.activeElement.closest?.('#tierTbl')) renderSettings();
   if ($('q').value) runSearch();
 }
-function currentView(){ const h = location.hash.replace('#',''); return ['map','orders','stats','log','settings'].includes(h) ? h : 'map'; }
+function currentView(){ const h = location.hash.replace('#',''); if (!S.isAdmin && (h==='log' || h==='settings')) return 'map'; return ['map','orders','stats','log','settings'].includes(h) ? h : 'map'; }
 function route(){
   const v = currentView();
   document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on', e.id==='v-'+v));
@@ -2236,6 +2258,7 @@ async function boot(){
   if (user){
     try { S.me = await user.id(); } catch(e){}
     try { S.isAdmin = !!(await user.canEdit()); } catch(e){}
+    document.body.classList.toggle('admin', S.isAdmin); route();
     try { const c = await user.can('data.write'); if (c === false) setReadOnly(); } catch(e){}
     $('role').style.display=''; $('role').textContent = S.isAdmin ? 'Quản lý' : (S.canWrite ? 'Bán vé' : 'Chỉ xem');
   }
