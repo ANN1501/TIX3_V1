@@ -104,7 +104,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .banner{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px}
 .banner.info{background:#eef3ff;color:#2f4ab0} .banner.warn{background:#fff4e5;color:#8a4b00} .banner.err{background:#fdeaea;color:var(--err)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d1b22;color:#fff;padding:10px 16px;border-radius:9px;z-index:60;font-size:13px;display:none;max-width:90vw}
-body:not(.admin) #nav a[data-v=log], body:not(.admin) #nav a[data-v=settings]{display:none}
+body:not(.admin) #nav a[data-v=log], body:not(.admin) #nav a[data-v=settings], body:not(.admin) .adminOnly{display:none}
 .modal{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:70}
 .modal.on{display:flex}
 .modal .card{width:min(460px,92vw)}
@@ -148,8 +148,7 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
       <div>
         <div class="maptools">
           <input type="search" id="q" placeholder="Tìm mã ghế, tên, SĐT, mã đơn…">
-          <button class="btn sm pri" id="mapSync">⟳ Làm mới từ Google Sheet</button>
-          <button class="btn sm push" id="mapPush">⬆ Cập nhật lên Google Sheet</button>
+          <button class="btn sm pri" id="mapSync">⟳ Đồng bộ Google Sheet</button>
           <span class="small muted" id="mapSyncInfo"></span>
           <button class="btn sm" id="panBtn" title="Bật: kéo chuột để rê sơ đồ. Tắt: kéo để chọn nhiều ghế. Giữ phím Space để rê tạm thời.">✋ Rê sơ đồ</button>
           <button class="btn sm" id="zoomOut">−</button>
@@ -177,11 +176,10 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
         <label class="f" style="flex:1;min-width:280px;margin:0"><span>Link Google Sheet danh sách mua vé (dán vào là tự đồng bộ)</span>
           <input type="text" id="gsUrl" placeholder="https://docs.google.com/spreadsheets/d/…"></label>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <button class="btn pri" id="gsSync">⟳ Làm mới từ Google Sheet</button>
-          <button class="btn push" id="gsPush">⬆ Cập nhật lên Google Sheet</button>
+          <button class="btn pri" id="gsSync">⟳ Đồng bộ Google Sheet</button>
         </div>
       </div>
-      <p class="small muted" style="margin:6px 0 0"><b>Làm mới</b>: lấy đơn/thay đổi từ sheet về web. <b>Cập nhật lên</b>: ghi số ghế đang có trên web lên cột Số ghế (dùng sau khi đổi ghế trên web — "Đổi ghế" vốn đã tự ghi, nút này để ghi bù/ghi lại toàn bộ).</p>
+      <p class="small muted" style="margin:6px 0 0">Một nút làm cả 2 chiều: lấy đơn mới / thay đổi / đơn bị xóa từ sheet về web, tự xếp ghế, rồi ghi mã ghế của web lên cột <b>Số ghế</b>. Đổi ghế trên web thì tự ghi lên sheet ngay.</p>
       <div id="gsMsg" class="small" style="margin-top:8px"></div>
       <div class="progress" id="gsProg" style="display:none"><i></i></div>
       <div id="gsHist" class="small" style="margin-top:8px"></div>
@@ -230,6 +228,11 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
       <p class="small muted" style="margin-top:-4px">Dùng khi danh sách ghi "THÁNG 12 (Cánh phải)" / "(Cánh trái)": hệ thống chỉ xếp ghế trong khán đài của cánh đó.</p>
       <h3>Quy tắc mã ghế</h3>
       <p class="small">Khán đài: <code>T12-[hàng]-[số]</code>; ghế đỏ: <code>RED-[hàng]-[số]</code> (giữ số thứ tự trong hàng, ví dụ RED-H-21; hàng VIP so le ở Tây Hồ: RED-VIP-1…19), số chạy liền từ trái sang phải trên sơ đồ, xuyên qua các khu và cầu thang. Khối ghế sàn quanh FOH: <code>GIO-[hàng A–F]-[số]</code>, hàng A gần sân khấu nhất, số chạy từ trên xuống.</p>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Công cụ</h2>
+      <p class="small" style="margin-top:0"><b>Xếp lại toàn bộ vé ngồi</b> của chặng đang chọn theo quy tắc: gần sân khấu trước, hàng sát sàn trước, nhóm ngồi liền nhau, người mua trước xếp trước; bỏ qua ghế khách mời. Mã ghế mới tự ghi lên Google Sheet. Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên. Chỉ dùng khi cần xếp lại từ đầu (vé chưa gửi cho khách).</p>
+      <div class="actions"><button class="btn" id="reallocBtn">↻ Xếp lại toàn bộ vé ngồi</button></div>
     </div>
     
   </section>
@@ -610,11 +613,18 @@ const VENUES = {
   hcm: { key:'rachmieu', leg:'HCM', venueName:'Nhà thi đấu Rạch Miễu', W:74, H:65, floor:[18,46],
     stage:{x0:1, x1:19}, sellRight:true, foh:[{x0:71,x1:72,y0:18,y1:46}], zones:[{key:'T3',x0:20,x1:34},{key:'MH',x0:35,x1:62}],
     standDist: s => s.y<18 ? 17-s.y : s.y-47, gioDist: s => s.x-62, wingTop:'R', labelY:[1.6,64.2],
+    // khu KHÁCH MỜI mặc định (theo mã gốc trong layout); Quản lý chỉnh thêm/bớt trên web
+    guest: s => { const r = s.code.replace(/-\d+$/,''), row = r.split('-')[1];
+      return (/^(T12|RED)-[A-E]$/.test(r) && s.x>=54) || /^GIO-[DEF]$/.test(r)
+        || (/^(T12|RED)-[M-R]$/.test(r) && s.x>=43 && s.x<=49) || (/^(T12|RED)-[T-X]$/.test(r) && s.x>=54); },
     here:['rach mieu'], other:['tay ho'], codeHere:/HCM\d/, codeOther:/HN\d/,
     tabHere:/hcm|ho chi minh|rach mieu/, tabOther:/(^|[^a-z])hn([^a-z]|$)|ha noi|tay ho/ },
   hn: { key:'tayho', leg:'HN', venueName:'Nhà thi đấu Tây Hồ', W:119, H:58, floor:[16,44],
     stage:{x0:81, x1:114}, sellRight:false, foh:[{x0:1,x1:3,y0:16,y1:44},{x0:4,x1:7,y0:27,y1:33}], zones:[{key:'MH',x0:18,x1:49},{key:'T3',x0:50,x1:80}],
     standDist: s => s.y<15 ? 14-s.y : s.y-46, gioDist: s => 17-s.x, wingTop:'L', labelY:[2.4,57.6],
+    guest: s => { const r = s.code.replace(/-\d+$/,'');
+      return (/^(T12|RED)-[A-E]$/.test(r) && (s.x<=11 || (s.x>=76 && s.x<=80))) || /^GIO-[ABC]$/.test(r) || (/^GIO-[DEFGH]$/.test(r) && s.n>=11 && s.n<=17)
+        || (/^(T12|RED)-[N-R]$/.test(r) && s.x<=11) || (/^(T12|RED)-[J-R]$/.test(r) && s.x>=73 && s.x<=80); },
     here:['tay ho'], other:['rach mieu'], codeHere:/HN\d/, codeOther:/HCM\d/,
     tabHere:/(^|[^a-z])hn([^a-z]|$)|ha noi|tay ho/, tabOther:/hcm|ho chi minh|rach mieu/ }
 };
@@ -627,15 +637,16 @@ function loadVenue(leg){
 }
 /** Mã gốc trong layout + chỉnh sửa của Quản lý (cfg.seatEdits: {mãGốc: {code, tier}}) */
 function applySeatEdits(){
-  let ed = {}; try { ed = (S.cfg && S.cfg.seatEdits) || {}; } catch(e){}   // S chưa có ở lần nạp đầu
+  let ed = {}, gl = null; try { ed = (S.cfg && S.cfg.seatEdits) || {}; gl = S.cfg && Array.isArray(S.cfg.guest) ? new Set(S.cfg.guest) : null; } catch(e){}   // S chưa có ở lần nạp đầu
   const kOf = (k, t) => t==='RED' ? 'r' : t==='GIO' ? 'g' : t==='T12' ? (k==='r'||k==='g' ? 'b' : k) : k;
   // chỉ bán từ ô sân khấu về phía FOH: ghế khán đài nằm ngang/phía sau sân khấu = KHÔNG BÁN
   SEATS = LAYOUT.seats.map(s0 => { const e = ed[s0.code]; const s = {...s0, orig:s0.code};
     if (e){ if (e.code){ s.code = e.code; const m = /-(\d+)$/.exec(e.code); if (m) s.n = Number(m[1]); } if (e.tier){ s.k = kOf(s0.k, e.tier); } }
-    return {...s, tier: (e && e.tier) || KIND_TIER[s.k], nosell: s0.k!=='g' && (V.sellRight ? s.x <= V.stage.x1 : s.x >= V.stage.x0)}; });
+    const nosell = s0.k!=='g' && (V.sellRight ? s.x <= V.stage.x1 : s.x >= V.stage.x0);
+    return {...s, tier: (e && e.tier) || KIND_TIER[s.k], nosell, guest: !nosell && (gl ? gl.has(s0.code) : !!(V.guest && V.guest(s0)))}; });
   BY_CODE = new Map(SEATS.map(s => [s.code, s]));
   ROWS = buildRows();
-  try { S._editSig = JSON.stringify(ed); } catch(e){}
+  try { S._editSig = JSON.stringify(ed) + '|' + (gl ? [...gl].sort().join(',') : 'def'); } catch(e){}
 }
 
 const TIERS_DEFAULT = [
@@ -654,6 +665,7 @@ const STATUS = {
   cancelled:{label:'Đã hủy'}
 };
 const BASE = { b:{fill:'#a9bcf5',text:'#1b2f80'}, y:{fill:'#fbe7a6',text:'#6b5200'}, r:{fill:'#e03131',text:'#fff'}, g:{fill:'#aee5b9',text:'#1d6b2e'} };
+const GUEST = {fill:'#f9a8d4', text:'#831843'};   // ghế KHÁCH MỜI còn trống
 const DECO = {
   p:{label:'Cột / trụ / tay vịn', color:'#868e96'}, c:{label:'Cầu thang', color:'#d6dbe1'}, s:{label:'Tay vịn cầu thang', color:'#a16207'},
   w:{label:'Lan can / lối đi', color:'#7b97e0'}, u:{label:'Bục', color:'#facc15'}, d:{label:'Cửa ra vào', color:'#22d3ee'}, x:{label:'Ô đỏ không đánh số (không bán)', color:'#fde2e2'}
@@ -886,38 +898,39 @@ async function setOrderStatus(oid, status){
 
 /* ---------- auto assign ---------- */
 function sellMid(r, tierKey){ const ns = r.seats.filter(s=>s.tier===tierKey && !s.nosell).map(s=>s.n); return ns.length ? (Math.min(...ns)+Math.max(...ns))/2 : r.mid; }
+/** Xếp ghế tự động.
+ *  Ghế khán đài: ưu tiên GẦN SÂN KHẤU trước (xét mọi hàng), cùng khoảng cách thì HÀNG SÁT SÀN trước (dưới lên trên);
+ *  nhóm nhiều vé ngồi liền nhau trong 1 hàng. Bỏ qua ghế khách mời / không bán.
+ *  TRÊN ĐỈNH GIÓ: cột gần sân khấu trước, giữ cách cũ (giữa cột ra hai đầu). */
+const stageDist = s => V.sellRight ? s.x - V.stage.x1 : V.stage.x0 - s.x;
 function autoAssign(tierKey, qty, reserved, wing='', own=''){
-  const free = s => s.tier===tierKey && !s.nosell && !reserved.has(s.code) && (!statusOf(s.code) || (own && (S.seatDocs.get(s.code)||{}).order===own));
+  const free = s => s.tier===tierKey && !s.nosell && !s.guest && !reserved.has(s.code) && (!statusOf(s.code) || (own && (S.seatDocs.get(s.code)||{}).order===own));
   const rows = ROWS.filter(r => r.tierSet.has(tierKey) && (!wing || wingOf(r.seats[0])===wing));
-  // 1) one contiguous run, best row first, closest to the row centre
+  const isGio = rows.length && rows[0].seats[0].k === 'g';
+  const cmp = (a,b) => { for (let i=0;i<a.length;i++){ if (a[i]!==b[i]) return a[i]-b[i]; } return 0; };
+  let best = null;
   for (const r of rows){
-    let best = null;
     for (const b of r.blocks){
       let run = [];
       const flush = () => {
-        if (run.length >= qty){
-          for (let i=0;i+qty<=run.length;i++){
-            const seg = run.slice(i,i+qty); const c = (seg[0].n+seg[qty-1].n)/2; const score = Math.abs(c - sellMid(r, tierKey));
-            if (!best || score < best.score) best = {seg, score};
-          }
+        for (let i=0;i+qty<=run.length;i++){
+          const seg = run.slice(i,i+qty);
+          const key = isGio ? [r.dist, Math.abs((seg[0].n+seg[qty-1].n)/2 - sellMid(r, tierKey))]
+                            : [Math.max(...seg.map(stageDist)), r.dist, Math.min(...seg.map(stageDist))];
+          if (!best || cmp(key, best.key) < 0) best = {seg, key};
         }
         run = [];
       };
       for (const s of b){ if (free(s)) run.push(s); else flush(); }
       flush();
     }
-    if (best) return best.seg.map(s=>s.code);
   }
-  // 2) fallback: fill the largest runs in best rows
-  const runs = [];
-  for (const r of rows) for (const b of r.blocks){
-    let run=[]; const push=()=>{ if(run.length) runs.push({run, dist:r.dist}); run=[]; };
-    for (const s of b){ if (free(s)) run.push(s); else push(); } push();
-  }
-  runs.sort((a,b)=> b.run.length-a.run.length || a.dist-b.dist);
-  const out = [];
-  for (const {run} of runs){ for (const s of run){ if (out.length<qty) out.push(s.code); } if (out.length>=qty) break; }
-  return out.length===qty ? out : null;
+  if (best) return best.seg.map(s=>s.code);
+  // không còn đủ ghế liền nhau: lấy các ghế lẻ gần sân khấu nhất
+  const all = [];
+  for (const r of rows) for (const s of r.seats) if (free(s)) all.push({s, k: isGio ? [r.dist, s.n] : [stageDist(s), r.dist]});
+  all.sort((a,b)=>cmp(a.k,b.k));
+  return all.length >= qty ? all.slice(0,qty).map(x=>x.s.code) : null;
 }
 
 /* ---------- map ---------- */
@@ -1009,8 +1022,9 @@ function paintSeat(code){
   const s = BY_CODE.get(code); const st = statusOf(code);
   const r = g.firstChild, t = g.lastChild;
   const c = st ? STATUS[st] : null;
-  r.setAttribute('fill', c ? c.color : BASE[s.k].fill); g.classList.toggle('st', !!c); g.classList.toggle('ns', !!s.nosell && !c);
-  t.setAttribute('fill', c ? c.text : BASE[s.k].text);
+  const base = s.guest ? GUEST : BASE[s.k];
+  r.setAttribute('fill', c ? c.color : base.fill); g.classList.toggle('st', !!c); g.classList.toggle('ns', !!s.nosell && !c);
+  t.setAttribute('fill', c ? c.text : base.text);
   g.classList.toggle('sel', !S.move && !S.assign && S.sel.has(code));
   g.classList.toggle('mv', (!!S.move && S.move.codes.has(code)) || (!!S.assign && S.assign.codes.has(code)));
 }
@@ -1034,7 +1048,7 @@ function mapEvents(){
     if (dl){ tip.innerHTML = `<b>${esc(dl)}</b>`; tip.style.display='block'; tip.style.left = Math.min(e.clientX+14, innerWidth-270)+'px'; tip.style.top = (e.clientY+14)+'px'; return; }
     if (!g){ tip.style.display='none'; return; }
     const code = g.dataset.code, s = BY_CODE.get(code), d = S.seatDocs.get(code);
-    let h = `<b>${esc(code)}</b> · ${esc(tierOf(s.tier).name)}${s.nosell?' · <b style="color:#ff6b6b">KHÔNG BÁN</b>':''}`;
+    let h = `${s.guest?'<b style="color:#f9a8d4">VÉ KHÁCH MỜI</b><br>':''}<b>${esc(code)}</b> · ${esc(tierOf(s.tier).name)}${s.nosell?' · <b style="color:#ff6b6b">KHÔNG BÁN</b>':''}`;
     if (d && d.status){ h += `<br>${esc(STATUS[d.status].label)}${d.name?` – ${esc(d.name)}`:''}${d.phone?` · ${esc(d.phone)}`:''}${d.order?`<br>Mã vé: <b>${esc(d.order)}</b>`:''}`; }
     else h += s.nosell ? '<br>Ghế phía sau đường sân khấu — không bán' : '<br>Còn trống';
     tip.innerHTML = h; tip.style.display='block';
@@ -1157,14 +1171,16 @@ function renderSel(){
   if (!codes.length){ body.className='muted small'; body.innerHTML='Chưa chọn ghế nào. Bấm vào ghế trên sơ đồ, hoặc kéo chuột trên nền trống để chọn nhiều ghế.'; return; }
   body.className='';
   const free = codes.filter(c=>!statusOf(c)), taken = codes.filter(c=>statusOf(c));
+  const gFree = free.filter(c=>BY_CODE.get(c).guest);
   const byTier = {}; codes.forEach(c=>{ const t=BY_CODE.get(c).tier; byTier[t]=(byTier[t]||0)+1; });
   let h = `<div class="small" style="margin-bottom:6px"><b>${codes.length}</b> ghế · ${Object.entries(byTier).map(([k,n])=>`${esc(tierOf(k).name)}: ${n}`).join(' · ')}</div>
     <div class="selcodes">${esc(compactCodes(codes))}</div>`;
   if (free.length){
     h += `<h3 style="margin-top:4px">${free.length} ghế trống</h3>
-      <label class="f"><span>Tên khách / đơn vị</span><input type="text" id="fName"></label>
+      ${gFree.length ? `<div class="small" style="background:#fdf2f8;border:1px solid #f9a8d4;color:#831843;border-radius:8px;padding:6px 8px;margin-bottom:6px"><b>VÉ KHÁCH MỜI</b> — ${gFree.length===free.length?'các ghế này':gFree.length+' ghế'} dành cho khách mời, chỉ ghi được dạng <b>Vé mời</b>.</div>` : ''}
+      <label class="f"><span>${gFree.length ? 'Tên khách mời' : 'Tên khách / đơn vị'}</span><input type="text" id="fName"></label>
       <div class="row2"><label class="f"><span>SĐT</span><input type="text" id="fPhone"></label>
-      <label class="f"><span>Loại</span><select id="fStatus"><option value="sold">Đã bán</option><option value="held">Giữ chỗ</option><option value="comp">Vé mời</option></select></label></div>
+      <label class="f"><span>Loại</span><select id="fStatus">${gFree.length ? '<option value="comp">Vé mời</option>' : '<option value="sold">Đã bán</option><option value="held">Giữ chỗ</option><option value="comp">Vé mời</option>'}</select></label></div>
       <label class="f"><span>Ghi chú</span><input type="text" id="fNote"></label>
       <div class="actions"><button class="btn pri" id="doSell">Xác nhận</button><button class="btn" id="doBlock">Khóa ghế</button></div>`;
   }
@@ -1177,13 +1193,15 @@ function renderSel(){
       (taken.every(c=>(S.orders.get(S.seatDocs.get(c).order)||{}).src!=='sheet') ? `<button class="btn danger" id="doRelease">Trả về trống</button>` : '') +
       `</div>`;
   }
-  h += `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" id="clrSel">Bỏ chọn</button>${S.isAdmin && S.canWrite ? `<button class="btn sm" id="editCodes">✏ Sửa mã ghế</button>` : ''}</div>`;
+  h += `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" id="clrSel">Bỏ chọn</button>${S.isAdmin && S.canWrite ? `<button class="btn sm" id="editCodes">✏ Sửa mã ghế</button>` + (codes.some(c=>!BY_CODE.get(c).guest && !BY_CODE.get(c).nosell) ? `<button class="btn sm" id="markGuest">🎟 Đánh dấu khách mời</button>` : '') + (codes.some(c=>BY_CODE.get(c).guest) ? `<button class="btn sm" id="unmarkGuest">Bỏ khách mời</button>` : '') : ''}</div>`;
   body.innerHTML = h;
   if ($('editCodes')) $('editCodes').onclick = () => openSeatEditor(codes);
+  if ($('markGuest')) $('markGuest').onclick = () => setGuest(codes, true);
+  if ($('unmarkGuest')) $('unmarkGuest').onclick = () => setGuest(codes, false);
   const ro = !S.canWrite;
   body.querySelectorAll('#doSell,#doBlock,#doRelease,#chgStatus,#doMove').forEach(b=>b.disabled=ro);
   if (taken.length && taken.some(c=>(S.orders.get(S.seatDocs.get(c).order)||{}).src==='sheet'))
-    body.insertAdjacentHTML('beforeend', `<p class="small muted" style="margin:8px 0 0">Đơn từ Google Sheet: muốn hủy thì xóa dòng trên sheet rồi bấm Làm mới. Đổi ghế ở đây sẽ ghi luôn lên sheet.</p>`);
+    body.insertAdjacentHTML('beforeend', `<p class="small muted" style="margin:8px 0 0">Đơn từ Google Sheet: muốn hủy thì xóa dòng trên sheet rồi bấm Đồng bộ. Đổi ghế ở đây sẽ ghi luôn lên sheet.</p>`);
   if ($('doMove')) $('doMove').onclick = ()=> startMove(S.seatDocs.get(taken[0]).order);
   wireOrderCards(body);
   $('clrSel').onclick = ()=>{ const old=[...S.sel]; S.sel.clear(); old.forEach(paintSeat); renderSel(); };
@@ -1284,6 +1302,56 @@ async function saveSeatEdits(items){
   if (orders && S.mcp && S.sheetMeta && S.sheetMeta.url) setTimeout(()=>gsPush(), 600);
   return changed;
 }
+/* ---------- khu KHÁCH MỜI (Quản lý chỉnh) ---------- */
+async function setGuest(codes, on){
+  const cur = new Set(SEATS.filter(s=>s.guest).map(s=>s.orig));
+  const list = codes.map(c=>BY_CODE.get(c)).filter(s=>s && !s.nosell);
+  const sold = on ? list.filter(s=>{ const d=S.seatDocs.get(s.code); return d && d.status && d.status!=='comp'; }) : [];
+  list.forEach(s => on ? cur.add(s.orig) : cur.delete(s.orig));
+  try {
+    await withRetry(()=>S.db.doc(P.cfg).set({...(S.cfg||{}), guest:[...cur].sort(), at:Date.now(), by:S.me||''}));
+    S.cfg = {...(S.cfg||{}), guest:[...cur].sort()}; applySeatEdits(); buildMap(); legend(); renderKpis();
+    await log('guest', `${on?'Đánh dấu':'Bỏ'} khách mời ${list.length} ghế [${compactCodes(list.map(s=>s.code))}]`);
+    S.sel.clear(); renderSel();
+    toast(on ? `Đã đánh dấu ${list.length} ghế khách mời${sold.length?` · ${sold.length} ghế đang có khách mua — bấm "Xếp lại toàn bộ" để dời`:''}` : `Đã trả ${list.length} ghế về ghế bán`, 6000);
+  } catch(e){ toast(writeErr(e), 5000); }
+}
+/* ---------- xếp lại toàn bộ vé ngồi theo quy tắc mới ---------- */
+const sheetTimeNum = t => { const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t||'')); return m ? Date.UTC(+m[3], m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0)) : Infinity; };
+function reallocAll(){
+  const list = [...S.orders.values()].filter(o => o.src==='sheet' && ['sold','held'].includes(o.status) && tierOf(o.tier).kind==='seat' && Number(o.qty)>0);
+  confirmBox(`Xếp lại toàn bộ ${list.length} đơn vé ngồi?`, 'Tất cả vé ngồi lấy từ Google Sheet sẽ được xếp lại từ đầu: gần sân khấu trước, hàng sát sàn trước, mua trước được xếp trước; bỏ qua ghế khách mời. Mã ghế mới tự ghi lên Google Sheet. Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên.', ()=>{ $('modal').classList.remove('on'); doReallocAll(list); });
+}
+async function doReallocAll(list){
+  if (S._syncing){ toast('Đang làm mới, thử lại sau ít giây'); return; }
+  S._syncing = true; gsStatus('Đang xếp lại toàn bộ vé ngồi…'); const prog = $('gsProg'); prog.style.display='block';
+  const set = p => { prog.firstChild.style.width = Math.round(p*100)+'%'; };
+  try {
+    list.sort((a,b)=> sheetTimeNum(a.sheetTime)-sheetTimeNum(b.sheetTime) || (Number(a.stt)||0)-(Number(b.stt)||0));
+    // 1) gỡ ghế cũ
+    const old = []; list.forEach(o => (o.seats||[]).forEach(c => { if ((S.seatDocs.get(c)||{}).order===o.id) old.push(c); }));
+    for (let i=0;i<old.length;i++){ await withRetry(()=>S.db.collection(P.seats).doc(old[i]).delete()); S.seatDocs.delete(old[i]); if (i%10===0) set(0.4*i/old.length); }
+    // 2) xếp lại theo thứ tự mua
+    const reserved = new Set(); let moved = 0; const fail = [];
+    for (let i=0;i<list.length;i++){
+      const o = list[i]; const qty = Number(o.qty)||0;
+      const got = autoAssign(o.tier, qty, reserved, o.wing||'');
+      if (!got){ fail.push(o.id); await withRetry(()=>S.db.collection(P.orders).doc(o.id).update({seats:[]})); S.orders.set(o.id, {...o, seats:[]}); continue; }
+      got.forEach(c=>reserved.add(c));
+      const base = {status:o.status, order:o.id, name:o.name||'', phone:o.phone||'', note:o.note||'', by:S.me||'', at:Date.now()};
+      for (const c of got){ const d = {code:c, tier:BY_CODE.get(c).tier, ...base}; await withRetry(()=>S.db.collection(P.seats).doc(c).set(d)); S.seatDocs.set(c, d); }
+      const upd = {seats:got, locked:false}; if (!o.sheetCell && (o.seats||[]).length) upd.sheetCell = o.seats.join('\n');
+      await withRetry(()=>S.db.collection(P.orders).doc(o.id).update(upd)); S.orders.set(o.id, {...o, ...upd});
+      if (!sameSet(got, o.seats||[])) moved++;
+      set(0.4 + 0.6*(i+1)/list.length);
+    }
+    paintAll(); scheduleRender();
+    await log('realloc', `Xếp lại toàn bộ vé ngồi: ${list.length} đơn, ${moved} đơn đổi ghế${fail.length?`, ${fail.length} đơn không đủ ghế: ${fail.join(', ')}`:''}`);
+    gsStatus(`Đã xếp lại ${list.length} đơn (${moved} đơn đổi ghế)${fail.length?` · <b style="color:#b91c1c">${fail.length} đơn không đủ ghế</b>`:''}. Đang ghi mã ghế lên Google Sheet…`);
+  } catch(e){ toast(writeErr(e), 6000); }
+  finally { S._syncing = false; prog.style.display='none'; }
+  if (S.mcp && S.sheetMeta && S.sheetMeta.url) await gsPush();
+}
 /* ---------- order card (search / selection) + edit ---------- */
 function orderCard(o){
   const stt = o.src==='sheet' && o.stt ? `STT ${esc(o.stt)} · ` : '';
@@ -1321,7 +1389,7 @@ function editOrder(oid){
   const o = S.orders.get(oid); if (!o) return; const fromSheet = o.src==='sheet';
   const dis = fromSheet ? 'disabled' : '';
   $('modalCard').innerHTML = `<h2>Sửa đơn ${esc(oid)}</h2>
-    ${fromSheet?`<p class="small muted" style="margin-top:0">Đơn lấy từ Google Sheet: Tên, SĐT, Email, Hạng vé, SL sửa trên sheet rồi bấm Làm mới. Ở đây sửa được Trạng thái và Ghi chú; ghế dùng nút Đổi ghế.</p>`:''}
+    ${fromSheet?`<p class="small muted" style="margin-top:0">Đơn lấy từ Google Sheet: Tên, SĐT, Email, Hạng vé, SL sửa trên sheet rồi bấm Đồng bộ. Ở đây sửa được Trạng thái và Ghi chú; ghế dùng nút Đổi ghế.</p>`:''}
     <label class="f"><span>Tên khách</span><input type="text" id="eName" value="${esc(o.name||'')}" ${dis}></label>
     <div class="row2"><label class="f"><span>SĐT</span><input type="text" id="ePhone" value="${esc(o.phone||'')}" ${dis}></label>
     <label class="f"><span>Email</span><input type="text" id="eEmail" value="${esc(o.email||'')}" ${dis}></label></div>
@@ -1391,7 +1459,7 @@ function renderMove(body){
 async function sheetWriteOrder(oid){
   const o = S.orders.get(oid); const url = (S.sheetMeta && S.sheetMeta.url) || $('gsUrl').value; const id = sheetIdFromUrl(url);
   if (!o || o.src!=='sheet' || !id) return 'Đã đổi ghế trên web.';
-  if (!S.mcp) return 'Đã đổi ghế trên web — chưa ghi lên Google Sheet (cần kết nối Google Sheets). Bấm "Làm mới" khi có kết nối để ghi.';
+  if (!S.mcp) return 'Đã đổi ghế trên web — chưa ghi lên Google Sheet (cần kết nối Google Sheets). Bấm "Đồng bộ Google Sheet" khi có kết nối để ghi.';
   try {
     if (!o.sheetTab || !o.sheetRow || !o.sheetCol){ await gsSync({quiet:true}); return 'Đã đổi ghế và cập nhật Google Sheet.'; }
     const m = findMatrix(await gsCall('get_values', {id, range:`${qTab(o.sheetTab)}!A${o.sheetRow}:Z${o.sheetRow}`}));
@@ -1400,7 +1468,7 @@ async function sheetWriteOrder(oid){
     await gsCall('update_values', {id, range:`${qTab(o.sheetTab)}!${o.sheetCol}${o.sheetRow}:${o.sheetCol}${o.sheetRow}`, values:[[text]]});
     await withRetry(()=>S.db.collection(P.orders).doc(oid).update({sheetCell:text})); S.orders.set(oid, {...o, sheetCell:text});
     return `Đã lưu và ghi lên Google Sheet (${o.sheetTab}, dòng ${o.sheetRow}).`;
-  } catch(e){ return 'Đã đổi ghế trên web nhưng chưa ghi được lên sheet: ' + gsErr(e) + ' — bấm "Làm mới" để ghi lại.'; }
+  } catch(e){ return 'Đã đổi ghế trên web nhưng chưa ghi được lên sheet: ' + gsErr(e) + ' — bấm "Đồng bộ Google Sheet" để ghi lại.'; }
 }
 function confirmBox(title, text, onYes){
   $('modalCard').innerHTML = `<h2>${esc(title)}</h2><p class="small muted">${esc(text)}</p><div class="actions"><button class="btn danger" id="mYes">Đồng ý</button><button class="btn" id="mNo">Thôi</button></div>`;
@@ -1413,12 +1481,15 @@ function confirmBox(title, text, onYes){
 function computeStats(){
   const st = {};
   for (const t of tiers()) st[t.key] = {total:0, sold:0, held:0, comp:0, blocked:0};
-  for (const s of SEATS){ const x = st[s.tier]; if(!x) continue; const v = statusOf(s.code); if (s.nosell && !v) continue; x.total++; if (v) x[v]++; }
+  st._guest = {total:0, used:0};
+  for (const s of SEATS){ const x = st[s.tier]; if(!x) continue; const v = statusOf(s.code); if (s.nosell && !v) continue;
+    if (s.guest){ st._guest.total++; if (v) st._guest.used++; continue; }
+    x.total++; if (v) x[v]++; }
   for (const t of tiers()) if (t.kind==='ga'){
     const x = st[t.key]; x.total = Number(t.cap)||0;
     for (const o of S.orders.values()) if (o.tier===t.key && o.status!=='cancelled' && !(o.seats||[]).length){ x[o.status] = (x[o.status]||0) + (Number(o.qty)||0); }
   }
-  for (const k in st){ const x=st[k]; x.free = Math.max(0, x.total - x.sold - x.held - x.comp - x.blocked); x.rev = x.sold * (Number(tierOf(k).price)||0); }
+  for (const k in st){ if (k==='_guest') continue; const x=st[k]; x.free = Math.max(0, x.total - x.sold - x.held - x.comp - x.blocked); x.rev = x.sold * (Number(tierOf(k).price)||0); }
   return st;
 }
 function renderKpis(){
@@ -1429,6 +1500,7 @@ function renderKpis(){
     <div class="kpi"><b>${fmt(tot.held)}</b><span>Đang giữ chỗ</span></div>
     <div class="kpi"><b>${fmt(tot.comp)}</b><span>Vé mời</span></div>
     <div class="kpi"><b>${fmt(tot.free)}</b><span>Ghế còn trống</span></div>
+    ${st._guest.total ? `<div class="kpi"><b>${fmt(st._guest.used)} / ${fmt(st._guest.total)}</b><span>Ghế khách mời đã gán tên</span></div>` : ''}
     ${tiers().filter(t=>t.kind==='ga').map(t=>`<div class="kpi"><b>${fmt(st[t.key].sold)}${st[t.key].total?` / ${fmt(st[t.key].total)}`:''}</b><span>${esc(t.name)} (đứng)</span></div>`).join('')}
 `;
   for (const t of tiers()) if (t.kind==='ga'){ const el=$('ga-'+t.key); if(el){ const x=st[t.key]; el.textContent = `Đã bán ${fmt(x.sold)}${x.total?` / ${fmt(x.total)}`:''} · vé đứng`; } }
@@ -1755,7 +1827,7 @@ async function gsSync({quiet=false}={}){
       other:plan.filter(x=>x.venue==='other').length, dups:plan.filter(x=>x.dup).length, errors:issues.length, noCol};
     const hist = [{at:Date.now(), by:S.me||'', byName:S.myName||'', made, moved, removed, wrote}, ...((S.sheetMeta && S.sheetMeta.history) || [])].slice(0,50);
     await withRetry(()=>S.db.doc(META).set({url, at:Date.now(), by:S.me||'', byName:S.myName||'', summary, issues:issues.slice(0,300), history:hist}));
-    if (made || moved || removed || wrote) await log('sheet', `Làm mới từ Google Sheet: ${made} đơn mới, ${moved} đơn đổi ghế, ${removed} đơn bị hủy, ghi ${wrote} ô Số ghế`);
+    if (made || moved || removed || wrote) await log('sheet', `Đồng bộ Google Sheet: ${made} đơn mới, ${moved} đơn đổi ghế, ${removed} đơn bị hủy, ghi ${wrote} ô Số ghế`);
     const openIss = issues.filter(i=>!resFor(i)); issues.length = 0; issues.push(...openIss.length ? openIss : []); if (!quiet || made || moved || removed) toast(made||moved||removed||wrote ? `Đã làm mới: ${made} đơn mới · ${moved} đổi ghế · ${removed} hủy · ${wrote} ô Số ghế ghi lên sheet${issues.length?` · ${issues.length} dòng cần xem`:''}` : `Đã làm mới — web đang khớp với Google Sheet${issues.length?` · ${issues.length} dòng cần xem`:''}`, 5000);
   } catch(e){ failed = true; gsStatus(esc(gsErr(e)), 'err'); if (!quiet) toast(gsErr(e), 6000); }
   finally { S._syncing = false; setSyncBusy(false); setTimeout(()=>{ prog.style.display='none'; bar.style.width='0'; }, 800); if (!failed) renderSheetStatus(); }
@@ -1846,7 +1918,7 @@ async function gsPush(){
   finally { S._syncing = false; setSyncBusy(false); setTimeout(()=>{ prog.style.display='none'; bar.style.width='0'; gsStatus(''); }, 900); }
 }
 function setSyncBusy(b){
-  const L = {gsSync:'⟳ Làm mới từ Google Sheet', mapSync:'⟳ Làm mới từ Google Sheet', gsPush:'⬆ Cập nhật lên Google Sheet', mapPush:'⬆ Cập nhật lên Google Sheet'};
+  const L = {gsSync:'⟳ Đồng bộ Google Sheet', mapSync:'⟳ Đồng bộ Google Sheet'};
   for (const id in L){ const el = $(id); if (!el) continue; el.disabled = b || !S.canWrite; el.textContent = b ? 'Đang xử lý…' : L[id]; }
 }
 function sameSet(a,b){ if (a.length!==b.length) return false; const s=new Set(a); return b.every(x=>s.has(x)); }
@@ -2036,7 +2108,7 @@ function renderAssign(body){
 }
 function renderSheetStatus(){
   const m = S.sheetMeta;
-  $('mapSyncInfo').textContent = m && m.at ? `Làm mới lúc ${fmtTime(m.at)}${m.byName?` · ${m.byName}`:''}` : (m && m.url ? '' : 'Chưa gắn Google Sheet');
+  $('mapSyncInfo').textContent = m && m.at ? `Đồng bộ lúc ${fmtTime(m.at)}${m.byName?` · ${m.byName}`:''}` : (m && m.url ? '' : 'Chưa gắn Google Sheet');
   if (m && m.url && !$('gsUrl').value && document.activeElement !== $('gsUrl')) $('gsUrl').value = m.url;
   if (!S._syncing) gsStatus('');
   const hist = (m && m.history) || (m && m.at ? [{at:m.at, by:m.by, byName:m.byName}] : []);
@@ -2073,7 +2145,7 @@ async function saveSettings(){
 function renderSyncLog(){
   const hist = (S.sheetMeta && S.sheetMeta.history) || [];
   $('synctbl').innerHTML = `<tr><th>Thời gian</th><th>Người bấm</th><th>Loại</th><th>Kết quả</th></tr>` + (hist.length ? hist.map(h =>
-    `<tr><td class="small" style="white-space:nowrap">${fmtTime(h.at)}</td><td class="small"><b>${esc(nameOf(h.by, h.byName))}</b></td><td class="small">${h.push?'Cập nhật lên sheet':'Làm mới từ sheet'}</td><td class="small">${esc(histText(h))}${!h.push && h.wrote?` · ghi ${h.wrote} ô`:''}</td></tr>`).join('')
+    `<tr><td class="small" style="white-space:nowrap">${fmtTime(h.at)}</td><td class="small"><b>${esc(nameOf(h.by, h.byName))}</b></td><td class="small">${h.push?'Cập nhật lên sheet':'Đồng bộ'}</td><td class="small">${esc(histText(h))}${!h.push && h.wrote?` · ghi ${h.wrote} ô`:''}</td></tr>`).join('')
     : `<tr><td colspan="4" class="muted">Chưa có lần nào.</td></tr>`);
 }
 function renderLog(){
@@ -2171,12 +2243,12 @@ function setReadOnly(){
 }
 function legendCounts(){
   const c = {sold:0, held:0, comp:0, blocked:0}; let free = 0;
-  for (const s of SEATS){ const v = statusOf(s.code); if (v) c[v]++; else if (!s.nosell) free++; }
+  for (const s of SEATS){ const v = statusOf(s.code); if (v) c[v]++; else if (!s.nosell && !s.guest) free++; }
   for (const k in c){ const el = document.querySelector(`[data-lc="${k}"]`); if (el) el.textContent = ` (${fmt(c[k])})`; }
   const f = document.querySelector('[data-lc="free"]'); if (f) f.textContent = ` (${fmt(free)})`;
 }
 function legend(){
-  const items = [[BASE.b.fill,'Trống – ghế xanh'],[BASE.y.fill,'Trống – ghế vàng'],[BASE.r.fill,'Trống – ghế đỏ'],[BASE.g.fill,'Trống – TRÊN ĐỈNH GIÓ'],
+  const items = [[BASE.b.fill,'Trống – ghế xanh'],[BASE.y.fill,'Trống – ghế vàng'],[BASE.r.fill,'Trống – ghế đỏ'],[BASE.g.fill,'Trống – TRÊN ĐỈNH GIÓ'],[GUEST.fill,'Khách mời (trống)'],
     [STATUS.sold.color,'Đã bán','sold'],[STATUS.held.color,'Giữ chỗ','held'],[STATUS.comp.color,'Vé mời','comp'],[STATUS.blocked.color,'Khóa','blocked'],['repeating-linear-gradient(45deg,#868e96 0 3px,#cfd4da 3px 6px)','Cột / trụ'],['repeating-linear-gradient(0deg,#9aa3ad 0 1px,#eceff3 1px 5px)','Cầu thang'],[DECO.s.color,'Tay vịn'],[DECO.w.color,'Lan can'],[DECO.u.color,'Bục'],[DECO.d.color,'Cửa']];
   $('legend').innerHTML = `<span><b>Trống</b><span data-lc="free"></span>:</span>` + items.map(([c,l,k])=>`<span><i style="background:${c}"></i>${l}${k?`<b data-lc="${k}"></b>`:''}</span>`).join('');
 }
@@ -2242,7 +2314,7 @@ async function boot(){
   $('saveCfg').onclick = saveSettings; if ($('exportSa')) $('exportSa').onclick = exportToStandalone;
   $('modal').onclick = e => { if (e.target.id==='modal' && !$('modal').dataset.lock) $('modal').classList.remove('on'); };
   $('gsSync').onclick = () => gsSync(); $('mapSync').onclick = () => gsSync();
-  $('gsPush').onclick = () => gsPush(); $('mapPush').onclick = () => gsPush();
+  $('reallocBtn').onclick = () => reallocAll();
   $('gsUrl').addEventListener('change', () => { if (sheetIdFromUrl($('gsUrl').value)) gsSync(); });
   $('gsUrl').addEventListener('paste', () => setTimeout(()=>{ if (sheetIdFromUrl($('gsUrl').value)) gsSync(); }, 50));
 
@@ -2299,7 +2371,7 @@ function subscribeVenue(){
   S.unsubs.push(db.collection(P.log).orderBy('at','desc').limit(300).onSnapshot(snap => { S.logs = snap.docs.map(d=>d.data()); scheduleRender(); }, ()=>{}));
   S.unsubs.push(db.doc(P.cfg).onSnapshot(snap => {
     S.cfg = snap.exists ? snap.data() : null;
-    if (JSON.stringify((S.cfg && S.cfg.seatEdits) || {}) !== (S._editSig || '{}')){ applySeatEdits(); buildMap(); paintAll(); legend(); renderSel(); }
+    if (JSON.stringify((S.cfg && S.cfg.seatEdits) || {}) + '|' + (S.cfg && Array.isArray(S.cfg.guest) ? [...S.cfg.guest].sort().join(',') : 'def') !== (S._editSig || '{}|def')){ applySeatEdits(); buildMap(); paintAll(); legend(); renderSel(); }
     paintWings();
     $('ofTier').innerHTML = `<option value="">Mọi hạng vé</option>` + tiers().map(t=>`<option value="${esc(t.key)}">${esc(t.name)}</option>`).join('');
     if (currentView()==='settings') renderSettings();
@@ -2309,7 +2381,7 @@ function subscribeVenue(){
 async function prefillSheetUrl(){
   const other = Object.values(VENUES).find(v => v.key!==VENUE); if (!other || !S.db) return;
   try { const d = await S.db.doc(`v/${other.key}/meta/sheet`).get(); const u = d.exists && d.data().url;
-    if (u && !$('gsUrl').value){ $('gsUrl').value = u; gsStatus(`Đã điền sẵn link Google Sheet của Chặng ${esc(other.leg)} — bấm <b>Làm mới từ Google Sheet</b> để lấy đơn Chặng ${esc(V.leg)} (tab "Danh sách … ${esc(V.leg)}").`, 'muted'); } } catch(e){}
+    if (u && !$('gsUrl').value){ $('gsUrl').value = u; gsStatus(`Đã điền sẵn link Google Sheet của Chặng ${esc(other.leg)} — bấm <b>Đồng bộ Google Sheet</b> để lấy đơn Chặng ${esc(V.leg)} (tab "Danh sách … ${esc(V.leg)}").`, 'muted'); } } catch(e){}
 }
 function showBrand(){
   $('brand').innerHTML = `BT Tour | Chặng ${V.leg}<small>${V.venueName}</small>`;
