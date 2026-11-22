@@ -597,13 +597,46 @@ window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxprS8AS0WNdJlo7sRR
       catch (e) { say(e.message || e.code); b.disabled = false; }
     });
   }
+
+  /* ---------- ai đang mở web (giống Google Sheet) ---------- */
+  const AV_COLORS = ['#7c3aed','#db2777','#0891b2','#ea580c','#16a34a','#2563eb','#c026d3','#ca8a04','#dc2626','#0d9488'];
+  const initials = n => { const w = String(n || '?').replace(/[–-].*$/, '').trim().split(/\s+/); return ((w.length > 1 ? w[0][0] + w[w.length - 1][0] : w[0].slice(0, 2)) || '?').toUpperCase(); };
+  const colorOf = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return AV_COLORS[h % AV_COLORS.length]; };
+  function renderOnline(list) {
+    addCss(); if (!document.getElementById('btOnCss')) { const st = document.createElement('style'); st.id = 'btOnCss'; st.textContent = `
+      #btOnline{display:flex;align-items:center;cursor:pointer;position:relative;margin-right:4px}
+      #btOnline .av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font:600 11px 'Be Vietnam Pro',system-ui,sans-serif;border:2px solid #fff;margin-left:-7px;box-shadow:0 0 0 1px #0001}
+      #btOnline .av:first-child{margin-left:0} #btOnline .more{background:#e5e7eb;color:#374151}
+      #btOnlineList{position:absolute;top:36px;right:0;background:#fff;border:1px solid #e5e2dc;border-radius:12px;box-shadow:0 10px 30px #0002;padding:8px;min-width:220px;z-index:50;font:13px 'Be Vietnam Pro',system-ui,sans-serif;color:#111;cursor:default}
+      #btOnlineList .it{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:8px} #btOnlineList .it .av{margin:0;width:26px;height:26px;border:0}
+      #btOnlineList small{color:#888}`; document.head.appendChild(st); }
+    let box = document.getElementById('btOnline');
+    if (!box) { const anchor = document.getElementById('role') || document.getElementById('btLogin'); if (!anchor) return;
+      box = document.createElement('div'); box.id = 'btOnline'; anchor.parentNode.insertBefore(box, anchor);
+      box.onclick = e => { e.stopPropagation(); const l = document.getElementById('btOnlineList'); if (l) l.remove(); else showList(); };
+      document.addEventListener('click', () => { const l = document.getElementById('btOnlineList'); if (l) l.remove(); }); }
+    box._list = list;
+    const MAX = 5; const shown = list.slice(0, MAX);
+    box.innerHTML = shown.map(p => `<span class="av" style="background:${colorOf(p.name)}" title="${esc(p.name)}${p.me ? ' (bạn)' : ''} · ${ROLE_LABEL[p.role] || p.role}">${esc(initials(p.name))}</span>`).join('')
+      + (list.length > MAX ? `<span class="av more" title="${list.length - MAX} người khác">+${list.length - MAX}</span>` : '');
+    box.title = `${list.length} người đang mở web`;
+    const open = document.getElementById('btOnlineList'); if (open) { open.remove(); showList(); }
+    function showList() {
+      const l = document.createElement('div'); l.id = 'btOnlineList'; l.onclick = e => e.stopPropagation();
+      l.innerHTML = `<div style="padding:2px 6px 6px;font-weight:600">Đang mở web (${box._list.length})</div>` + box._list.map(p =>
+        `<div class="it"><span class="av" style="background:${colorOf(p.name)}">${esc(initials(p.name))}</span><div><div>${esc(p.name)}${p.me ? ' <small>(bạn)</small>' : ''}</div><small>${ROLE_LABEL[p.role] || p.role}</small></div></div>`).join('');
+      box.appendChild(l);
+    }
+  }
   function wire() {
     const b = document.getElementById('btLogin'); if (!b) return;
     b.style.display = '';
     if (role === 'admin') { b.textContent = '👥 Duyệt truy cập'; b.onclick = () => { renderAcc(); loadAcc(); }; loadAcc(true); setInterval(() => { if (!document.hidden) loadAcc(true); }, 15000); }
     else { b.textContent = 'Thoát'; b.title = 'Thoát tài khoản trên máy này'; b.onclick = async () => { if (confirm('Thoát tài khoản trên máy này? Lần sau vào lại bằng tên + mật khẩu của bạn.')) { try { await call({ op: 'logout' }); } catch (e) {} ls.set('btTok', ''); location.reload(); } }; }
-    // định kỳ kiểm tra quyền (bị gỡ / đổi quyền → tải lại)
-    setInterval(async () => { if (document.hidden) return; try { const x = await call({ op: 'me' }); if (x.role !== role) location.reload(); } catch (e) {} }, 15000);
+    // định kỳ kiểm tra quyền (bị gỡ / đổi quyền → tải lại) + ai đang mở web
+    const ping = async () => { try { const x = await call({ op: 'me' }); if (x.role !== role) location.reload(); else renderOnline(x.online || []); } catch (e) {} };
+    ping(); setInterval(() => { if (!document.hidden) ping(); }, 15000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
   }
 
   window.claude = { use: async n => { await gateP; return ({ db, user, mcp, downloads })[n] || null; } };
@@ -1320,7 +1353,8 @@ async function setGuest(codes, on){
   } catch(e){ toast(writeErr(e), 5000); }
 }
 /* ---------- xếp lại toàn bộ vé ngồi theo quy tắc mới ---------- */
-const sheetTimeNum = t => { const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t||'')); return m ? Date.UTC(+m[3], m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0)) : Infinity; };
+const sheetTimeNum = t => { const s = String(t||''); const d = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s), h = /(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(s);   // "dd/mm/yyyy hh:mm:ss" hoặc "hh:mm:ss dd/mm/yyyy"
+  return d ? Date.UTC(+d[3], d[2]-1, +d[1], h ? +h[1] : 0, h ? +h[2] : 0, h ? +(h[3]||0) : 0) : Infinity; };
 function reallocAll(){
   const list = [...S.orders.values()].filter(o => o.src==='sheet' && ['sold','held'].includes(o.status) && tierOf(o.tier).kind==='seat' && Number(o.qty)>0);
   confirmBox(`Xếp lại toàn bộ ${list.length} đơn vé ngồi?`, 'Tất cả vé ngồi lấy từ Google Sheet sẽ được xếp lại từ đầu: gần sân khấu trước, hàng sát sàn trước, mua trước được xếp trước; bỏ qua ghế khách mời. Xếp xong bạn xem lại trên sơ đồ, ổn rồi mới bấm "Cập nhật lên Google Sheet". Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên.', ()=>{ $('modal').classList.remove('on'); doReallocAll(list); });
