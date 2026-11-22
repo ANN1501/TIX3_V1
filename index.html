@@ -71,6 +71,7 @@ label.f{display:block;margin-bottom:10px} label.f span{display:block;font-size:1
 .mapwrap.panning{cursor:grab} .mapwrap.panning #map .seat{cursor:pointer} .mapwrap.grabbing,.mapwrap.grabbing *{cursor:grabbing!important}
 mark{background:#fff3a3;padding:1px 4px;border-radius:4px;color:#3b2f00;font-weight:600}
 .resnote{margin-top:4px} tr.resolved td{opacity:.75} tr.resolved td:nth-child(7){opacity:1}
+.btn.push.hot{box-shadow:0 0 0 3px #fde68a}
 .btn.push{background:#0b7a5a;border-color:#0b7a5a;color:#fff} .btn.push:hover{filter:brightness(1.1)}
 th.sortable{cursor:pointer;user-select:none} th.sortable:hover{color:var(--ink)} th.sortable .ar{font-size:10px;margin-left:3px;opacity:.7}
 .btn.on{background:var(--accent-2);border-color:var(--accent);color:var(--accent)}
@@ -125,7 +126,7 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
   <div class="seg" id="legSeg"><button data-leg="hcm">Chặng HCM</button><button data-leg="hn">Chặng HN</button></div>
   <nav id="nav">
     <a href="#map" data-v="map">Sơ đồ</a>
-    <a href="#orders" data-v="orders">Đơn hàng & Google Sheet</a>
+    <a href="#orders" data-v="orders">Danh sách đơn hàng</a>
     <a href="#stats" data-v="stats">Thống kê</a>
     <a href="#log" data-v="log">Lịch sử</a>
     <a href="#settings" data-v="settings">Cài đặt</a>
@@ -148,7 +149,8 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
       <div>
         <div class="maptools">
           <input type="search" id="q" placeholder="Tìm mã ghế, tên, SĐT, mã đơn…">
-          <button class="btn sm pri" id="mapSync">⟳ Đồng bộ Google Sheet</button>
+          <button class="btn sm pri" id="mapSync">⟳ Làm mới từ Google Sheet</button>
+          <button class="btn sm push" id="mapPush">⬆ Cập nhật lên Google Sheet</button>
           <span class="small muted" id="mapSyncInfo"></span>
           <button class="btn sm" id="panBtn" title="Bật: kéo chuột để rê sơ đồ. Tắt: kéo để chọn nhiều ghế. Giữ phím Space để rê tạm thời.">✋ Rê sơ đồ</button>
           <button class="btn sm" id="zoomOut">−</button>
@@ -176,10 +178,11 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
         <label class="f" style="flex:1;min-width:280px;margin:0"><span>Link Google Sheet danh sách mua vé (dán vào là tự đồng bộ)</span>
           <input type="text" id="gsUrl" placeholder="https://docs.google.com/spreadsheets/d/…"></label>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <button class="btn pri" id="gsSync">⟳ Đồng bộ Google Sheet</button>
+          <button class="btn pri" id="gsSync">⟳ Làm mới từ Google Sheet</button>
+          <button class="btn push" id="gsPush">⬆ Cập nhật lên Google Sheet</button>
         </div>
       </div>
-      <p class="small muted" style="margin:6px 0 0">Một nút làm cả 2 chiều: lấy đơn mới / thay đổi / đơn bị xóa từ sheet về web, tự xếp ghế, rồi ghi mã ghế của web lên cột <b>Số ghế</b>. Đổi ghế trên web thì tự ghi lên sheet ngay.</p>
+      <p class="small muted" style="margin:6px 0 0"><b>B1 · Làm mới</b>: lấy đơn mới / thay đổi / đơn bị xóa từ sheet về web và tự xếp ghế — <b>chưa ghi gì lên sheet</b>. <b>B2</b>: xem lại, đổi ghế trên web nếu cần. <b>B3 · Cập nhật lên</b>: ghi mã ghế của web lên cột <b>Số ghế</b>.</p>
       <div id="gsMsg" class="small" style="margin-top:8px"></div>
       <div class="progress" id="gsProg" style="display:none"><i></i></div>
       <div id="gsHist" class="small" style="margin-top:8px"></div>
@@ -231,7 +234,7 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
     </div>
     <div class="card" style="margin-top:14px">
       <h2>Công cụ</h2>
-      <p class="small" style="margin-top:0"><b>Xếp lại toàn bộ vé ngồi</b> của chặng đang chọn theo quy tắc: gần sân khấu trước, hàng sát sàn trước, nhóm ngồi liền nhau, người mua trước xếp trước; bỏ qua ghế khách mời. Mã ghế mới tự ghi lên Google Sheet. Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên. Chỉ dùng khi cần xếp lại từ đầu (vé chưa gửi cho khách).</p>
+      <p class="small" style="margin-top:0"><b>Xếp lại toàn bộ vé ngồi</b> của chặng đang chọn theo quy tắc: gần sân khấu trước, hàng sát sàn trước, nhóm ngồi liền nhau, người mua trước xếp trước; bỏ qua ghế khách mời. Xếp xong xem lại trên sơ đồ, ổn rồi bấm <b>⬆ Cập nhật lên Google Sheet</b> ở tab Đơn hàng. Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên. Chỉ dùng khi cần xếp lại từ đầu (vé chưa gửi cho khách).</p>
       <div class="actions"><button class="btn" id="reallocBtn">↻ Xếp lại toàn bộ vé ngồi</button></div>
     </div>
     
@@ -1201,7 +1204,7 @@ function renderSel(){
   const ro = !S.canWrite;
   body.querySelectorAll('#doSell,#doBlock,#doRelease,#chgStatus,#doMove').forEach(b=>b.disabled=ro);
   if (taken.length && taken.some(c=>(S.orders.get(S.seatDocs.get(c).order)||{}).src==='sheet'))
-    body.insertAdjacentHTML('beforeend', `<p class="small muted" style="margin:8px 0 0">Đơn từ Google Sheet: muốn hủy thì xóa dòng trên sheet rồi bấm Đồng bộ. Đổi ghế ở đây sẽ ghi luôn lên sheet.</p>`);
+    body.insertAdjacentHTML('beforeend', `<p class="small muted" style="margin:8px 0 0">Đơn từ Google Sheet: muốn hủy thì xóa dòng trên sheet rồi bấm Làm mới. Đổi ghế xong bấm "Cập nhật lên Google Sheet" để ghi lên sheet.</p>`);
   if ($('doMove')) $('doMove').onclick = ()=> startMove(S.seatDocs.get(taken[0]).order);
   wireOrderCards(body);
   $('clrSel').onclick = ()=>{ const old=[...S.sel]; S.sel.clear(); old.forEach(paintSeat); renderSel(); };
@@ -1299,7 +1302,7 @@ async function saveSeatEdits(items){
   }
   paintAll(); scheduleRender();
   await log('seatcode', `Sửa mã ghế: ${[...ren].map(([a,b])=>`${a} → ${b}`).join(', ') || 'đổi hạng ghế'}${orders?` · ${orders} đơn cập nhật`:''}`);
-  if (orders && S.mcp && S.sheetMeta && S.sheetMeta.url) setTimeout(()=>gsPush(), 600);
+  if (orders) setTimeout(()=>toast(`Đã đổi mã ghế · ${orders} đơn chờ "Cập nhật lên Google Sheet"`, 6000), 300);
   return changed;
 }
 /* ---------- khu KHÁCH MỜI (Quản lý chỉnh) ---------- */
@@ -1320,7 +1323,7 @@ async function setGuest(codes, on){
 const sheetTimeNum = t => { const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t||'')); return m ? Date.UTC(+m[3], m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0)) : Infinity; };
 function reallocAll(){
   const list = [...S.orders.values()].filter(o => o.src==='sheet' && ['sold','held'].includes(o.status) && tierOf(o.tier).kind==='seat' && Number(o.qty)>0);
-  confirmBox(`Xếp lại toàn bộ ${list.length} đơn vé ngồi?`, 'Tất cả vé ngồi lấy từ Google Sheet sẽ được xếp lại từ đầu: gần sân khấu trước, hàng sát sàn trước, mua trước được xếp trước; bỏ qua ghế khách mời. Mã ghế mới tự ghi lên Google Sheet. Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên.', ()=>{ $('modal').classList.remove('on'); doReallocAll(list); });
+  confirmBox(`Xếp lại toàn bộ ${list.length} đơn vé ngồi?`, 'Tất cả vé ngồi lấy từ Google Sheet sẽ được xếp lại từ đầu: gần sân khấu trước, hàng sát sàn trước, mua trước được xếp trước; bỏ qua ghế khách mời. Xếp xong bạn xem lại trên sơ đồ, ổn rồi mới bấm "Cập nhật lên Google Sheet". Vé mời / giữ chỗ / khóa tạo trên web giữ nguyên.', ()=>{ $('modal').classList.remove('on'); doReallocAll(list); });
 }
 async function doReallocAll(list){
   if (S._syncing){ toast('Đang làm mới, thử lại sau ít giây'); return; }
@@ -1347,10 +1350,10 @@ async function doReallocAll(list){
     }
     paintAll(); scheduleRender();
     await log('realloc', `Xếp lại toàn bộ vé ngồi: ${list.length} đơn, ${moved} đơn đổi ghế${fail.length?`, ${fail.length} đơn không đủ ghế: ${fail.join(', ')}`:''}`);
-    gsStatus(`Đã xếp lại ${list.length} đơn (${moved} đơn đổi ghế)${fail.length?` · <b style="color:#b91c1c">${fail.length} đơn không đủ ghế</b>`:''}. Đang ghi mã ghế lên Google Sheet…`);
+    gsStatus(`Đã xếp lại ${list.length} đơn (${moved} đơn đổi ghế)${fail.length?` · <b style="color:#b91c1c">${fail.length} đơn không đủ ghế</b>`:''}. Xem lại trên sơ đồ, ổn thì bấm <b>⬆ Cập nhật lên Google Sheet</b>.`);
   } catch(e){ toast(writeErr(e), 6000); }
   finally { S._syncing = false; prog.style.display='none'; }
-  if (S.mcp && S.sheetMeta && S.sheetMeta.url) await gsPush();
+  updatePushBtn();
 }
 /* ---------- order card (search / selection) + edit ---------- */
 function orderCard(o){
@@ -1389,7 +1392,7 @@ function editOrder(oid){
   const o = S.orders.get(oid); if (!o) return; const fromSheet = o.src==='sheet';
   const dis = fromSheet ? 'disabled' : '';
   $('modalCard').innerHTML = `<h2>Sửa đơn ${esc(oid)}</h2>
-    ${fromSheet?`<p class="small muted" style="margin-top:0">Đơn lấy từ Google Sheet: Tên, SĐT, Email, Hạng vé, SL sửa trên sheet rồi bấm Đồng bộ. Ở đây sửa được Trạng thái và Ghi chú; ghế dùng nút Đổi ghế.</p>`:''}
+    ${fromSheet?`<p class="small muted" style="margin-top:0">Đơn lấy từ Google Sheet: Tên, SĐT, Email, Hạng vé, SL sửa trên sheet rồi bấm Làm mới. Ở đây sửa được Trạng thái và Ghi chú; ghế dùng nút Đổi ghế.</p>`:''}
     <label class="f"><span>Tên khách</span><input type="text" id="eName" value="${esc(o.name||'')}" ${dis}></label>
     <div class="row2"><label class="f"><span>SĐT</span><input type="text" id="ePhone" value="${esc(o.phone||'')}" ${dis}></label>
     <label class="f"><span>Email</span><input type="text" id="eEmail" value="${esc(o.email||'')}" ${dis}></label></div>
@@ -1450,7 +1453,7 @@ function renderMove(body){
       if (!r.ok){ toast(`Ghế ${r.conflict} vừa bị người khác lấy — chọn ghế khác.`, 5000); renderSel(); return; }
       await log('move', `Đổi ghế ${m.oid}: ${compactCodes(old)} → ${compactCodes(now)}`);
       S.move = null; S.sel = new Set(now); paintAll(); renderSel();
-      if (o.src==='sheet'){ toast('Đã đổi ghế, đang ghi lên Google Sheet…'); const w = await sheetWriteOrder(m.oid); toast(w, 5000); }
+      if (o.src==='sheet') toast('Đã đổi ghế trên web — xem lại rồi bấm "⬆ Cập nhật lên Google Sheet" để ghi lên sheet', 6000);
       else toast('Đã đổi ghế');
     } catch(e){ toast(writeErr(e), 5000); renderSel(); }
   };
@@ -1459,7 +1462,7 @@ function renderMove(body){
 async function sheetWriteOrder(oid){
   const o = S.orders.get(oid); const url = (S.sheetMeta && S.sheetMeta.url) || $('gsUrl').value; const id = sheetIdFromUrl(url);
   if (!o || o.src!=='sheet' || !id) return 'Đã đổi ghế trên web.';
-  if (!S.mcp) return 'Đã đổi ghế trên web — chưa ghi lên Google Sheet (cần kết nối Google Sheets). Bấm "Đồng bộ Google Sheet" khi có kết nối để ghi.';
+  if (!S.mcp) return 'Đã đổi ghế trên web — chưa ghi lên Google Sheet (cần kết nối Google Sheets). Bấm "Cập nhật lên Google Sheet" khi có kết nối.';
   try {
     if (!o.sheetTab || !o.sheetRow || !o.sheetCol){ await gsSync({quiet:true}); return 'Đã đổi ghế và cập nhật Google Sheet.'; }
     const m = findMatrix(await gsCall('get_values', {id, range:`${qTab(o.sheetTab)}!A${o.sheetRow}:Z${o.sheetRow}`}));
@@ -1468,7 +1471,7 @@ async function sheetWriteOrder(oid){
     await gsCall('update_values', {id, range:`${qTab(o.sheetTab)}!${o.sheetCol}${o.sheetRow}:${o.sheetCol}${o.sheetRow}`, values:[[text]]});
     await withRetry(()=>S.db.collection(P.orders).doc(oid).update({sheetCell:text})); S.orders.set(oid, {...o, sheetCell:text});
     return `Đã lưu và ghi lên Google Sheet (${o.sheetTab}, dòng ${o.sheetRow}).`;
-  } catch(e){ return 'Đã đổi ghế trên web nhưng chưa ghi được lên sheet: ' + gsErr(e) + ' — bấm "Đồng bộ Google Sheet" để ghi lại.'; }
+  } catch(e){ return 'Đã đổi ghế trên web nhưng chưa ghi được lên sheet: ' + gsErr(e) + ' — bấm "Cập nhật lên Google Sheet" để ghi lại.'; }
 }
 function confirmBox(title, text, onYes){
   $('modalCard').innerHTML = `<h2>${esc(title)}</h2><p class="small muted">${esc(text)}</p><div class="actions"><button class="btn danger" id="mYes">Đồng ý</button><button class="btn" id="mNo">Thôi</button></div>`;
@@ -1493,6 +1496,7 @@ function computeStats(){
   return st;
 }
 function renderKpis(){
+  try { updatePushBtn(); } catch(e){}
   const st = computeStats(); let tot={total:0,sold:0,held:0,comp:0,free:0,rev:0};
   for (const t of tiers()) if (t.kind==='seat'){ const x=st[t.key]; for (const k in tot) tot[k]+=x[k]||0; }
   $('kpis').innerHTML = `
@@ -1819,7 +1823,16 @@ async function gsSync({quiet=false}={}){
       bar.style.width = (20 + 60*n/Math.max(1,work.length))+'%';
     }
 
-    const {wrote, noCol} = await writeSeatsBack(id, tabInfo, plan);
+    // Làm mới KHÔNG ghi lên sheet: chỉ ghi nhận ô Số ghế hiện tại để biết đơn nào còn chờ "Cập nhật lên"
+    const wrote = 0; const colOf = new Map(tabInfo.map(t=>[t.tab, t.seatCol]));
+    const noCol = tabInfo.filter(t => t.seatCol==null && plan.some(x=>x.tab===t.tab && x.venue!=='other')).map(t=>t.tab);
+    for (const x of plan){
+      if (x.errs.length || x.dup || x.venue==='other' || colOf.get(x.tab)==null) continue;
+      const oid = x.orderId||x.code; const o = S.orders.get(oid); const cell = x.seats||'';
+      if (o && o.status!=='cancelled' && o.status!=='excluded' && (o.sheetCell==null ? null : o.sheetCell) !== cell){
+        try { await withRetry(()=>S.db.collection(P.orders).doc(oid).update({sheetCell:cell})); S.orders.set(oid, {...S.orders.get(oid), sheetCell:cell}); } catch(e){}
+      }
+    }
     bar.style.width='100%';
     const issues = plan.filter(x=>x.errs.length || x.dup).map(x=>({tab:x.tab, stt:x.stt, code:x.code, name:x.name, phone:x.phone||'', email:x.email||'', time:x.time||'',
       tier:x.tierRaw, tierKey:x.tier||'', wing:x.wing||'', qty:Number(x.qty)||parseInt(String(x.qty))||0, sheetRow:x.sheetRow, sheetCol:x.sheetCol||'', sheetTi:x.ti, dup:!!x.dup, cross:!!x.cross, err:x.dup || x.errs.join('; ')}));
@@ -1827,8 +1840,9 @@ async function gsSync({quiet=false}={}){
       other:plan.filter(x=>x.venue==='other').length, dups:plan.filter(x=>x.dup).length, errors:issues.length, noCol};
     const hist = [{at:Date.now(), by:S.me||'', byName:S.myName||'', made, moved, removed, wrote}, ...((S.sheetMeta && S.sheetMeta.history) || [])].slice(0,50);
     await withRetry(()=>S.db.doc(META).set({url, at:Date.now(), by:S.me||'', byName:S.myName||'', summary, issues:issues.slice(0,300), history:hist}));
-    if (made || moved || removed || wrote) await log('sheet', `Đồng bộ Google Sheet: ${made} đơn mới, ${moved} đơn đổi ghế, ${removed} đơn bị hủy, ghi ${wrote} ô Số ghế`);
-    const openIss = issues.filter(i=>!resFor(i)); issues.length = 0; issues.push(...openIss.length ? openIss : []); if (!quiet || made || moved || removed) toast(made||moved||removed||wrote ? `Đã làm mới: ${made} đơn mới · ${moved} đổi ghế · ${removed} hủy · ${wrote} ô Số ghế ghi lên sheet${issues.length?` · ${issues.length} dòng cần xem`:''}` : `Đã làm mới — web đang khớp với Google Sheet${issues.length?` · ${issues.length} dòng cần xem`:''}`, 5000);
+    if (made || moved || removed) await log('sheet', `Làm mới từ Google Sheet: ${made} đơn mới, ${moved} đơn đổi ghế, ${removed} đơn bị hủy`);
+    const openIss = issues.filter(i=>!resFor(i)); issues.length = 0; issues.push(...openIss.length ? openIss : []); const pend = pendingPush().length;
+    if (!quiet || made || moved || removed) toast(`Đã làm mới: ${made} đơn mới · ${moved} đổi ghế · ${removed} hủy${issues.length?` · ${issues.length} dòng cần xem`:''}${pend?` · ${pend} đơn chờ "Cập nhật lên Google Sheet"`:' · Google Sheet đang khớp với web'}`, 6000);
   } catch(e){ failed = true; gsStatus(esc(gsErr(e)), 'err'); if (!quiet) toast(gsErr(e), 6000); }
   finally { S._syncing = false; setSyncBusy(false); setTimeout(()=>{ prog.style.display='none'; bar.style.width='0'; }, 800); if (!failed) renderSheetStatus(); }
 }
@@ -1882,11 +1896,14 @@ async function writeSeatsBack(id, tabInfo, plan){
       if (x && !x.errs.length){ const o = S.orders.get(x.orderId||x.code);
         if (o && o.status!=='cancelled' && o.status!=='excluded') v = (o.seats||[]).length ? o.seats.join('\n') : (cur===NO_SEAT_TEXT ? '' : cur);   // vé đứng: không ghi mã ghế
       }
-      if (v !== cur){ changed++; if (x) written.push([x.orderId||x.code, v]); }
+      if (v !== cur) changed++;
+      if (x && !x.errs.length) written.push([x.orderId||x.code, v]);
       values.push([v]);
     }
     if (changed){
       await gsCall('update_values', {id, range:`${qTab(info.tab)}!${colLetter(info.seatCol)}${first}:${colLetter(info.seatCol)}${last}`, values}); wrote += changed;
+    }
+    {
       for (const [code, v] of written){ const o = S.orders.get(code); if (o && o.sheetCell!==v){ try { await withRetry(()=>S.db.collection(P.orders).doc(code).update({sheetCell:v})); S.orders.set(code, {...o, sheetCell:v}); } catch(e){} } }
     }
   }
@@ -1918,8 +1935,19 @@ async function gsPush(){
   finally { S._syncing = false; setSyncBusy(false); setTimeout(()=>{ prog.style.display='none'; bar.style.width='0'; gsStatus(''); }, 900); }
 }
 function setSyncBusy(b){
-  const L = {gsSync:'⟳ Đồng bộ Google Sheet', mapSync:'⟳ Đồng bộ Google Sheet'};
+  const L = {gsSync:'⟳ Làm mới từ Google Sheet', mapSync:'⟳ Làm mới từ Google Sheet', gsPush:'⬆ Cập nhật lên Google Sheet', mapPush:'⬆ Cập nhật lên Google Sheet'};
   for (const id in L){ const el = $(id); if (!el) continue; el.disabled = b || !S.canWrite; el.textContent = b ? 'Đang xử lý…' : L[id]; }
+  if (!b) updatePushBtn();
+}
+/** Đơn từ sheet có mã ghế trên web khác ô Số ghế trên sheet (chờ "Cập nhật lên") */
+function pendingPush(){
+  return [...S.orders.values()].filter(o => o.src==='sheet' && o.status!=='cancelled' && o.status!=='excluded' && o.sheetRow && (o.seats||[]).length
+    && (o.seats||[]).join('\n') !== (o.sheetCell==null ? '' : String(o.sheetCell)));
+}
+function updatePushBtn(){
+  const n = (S.orders && S.orders.size) ? pendingPush().length : 0;
+  for (const id of ['gsPush','mapPush']){ const el = $(id); if (!el || el.textContent==='Đang xử lý…') continue;
+    el.textContent = '⬆ Cập nhật lên Google Sheet'; el.title = n ? `${n} đơn có mã ghế trên web chưa ghi lên sheet` : 'Google Sheet đang khớp với web'; }
 }
 function sameSet(a,b){ if (a.length!==b.length) return false; const s=new Set(a); return b.every(x=>s.has(x)); }
 function gsPlan(rows, otherIds=new Set(), otherLeg=''){
@@ -1958,6 +1986,7 @@ function gsPlan(rows, otherIds=new Set(), otherLeg=''){
         if (bad.length) p.errs.push('Ô Số ghế có mã không tồn tại: ' + bad.join(', '));
         else if (codes.some(c=>BY_CODE.get(c).tier!==tier)) p.errs.push(`Ô Số ghế có ghế không thuộc hạng ${t.name}`);
         else if (codes.some(c=>BY_CODE.get(c).nosell)) p.errs.push('Ô Số ghế có ghế KHÔNG BÁN (phía sau sân khấu): ' + codes.filter(c=>BY_CODE.get(c).nosell).join(', '));
+        else if (codes.some(c=>BY_CODE.get(c).guest)) p.errs.push('Ô Số ghế có ghế thuộc khu KHÁCH MỜI: ' + codes.filter(c=>BY_CODE.get(c).guest).join(', ') + ' — xóa ô Số ghế để web tự xếp ghế khác');
         else if (wing && !(live && ex.locked) && codes.some(c=>wingOf(BY_CODE.get(c))!==wing)) p.errs.push(`Ô Số ghế có ghế không thuộc ${WING_LABEL[wing]}`);
         else if (codes.length!==qty) p.errs.push(`Ô Số ghế có ${codes.length} ghế nhưng SL = ${qty}`);
         else { const busy = codes.filter(c=>!mineOrFree(c)); if (busy.length) p.errs.push('Ghế ghi trên sheet đã có người: ' + busy.join(', ')); else sheetCodes = codes; }
@@ -1966,7 +1995,7 @@ function gsPlan(rows, otherIds=new Set(), otherLeg=''){
     }
     p.qty = qty;
     if (live){
-      const badSeats = (ex.seats||[]).filter(c => (BY_CODE.get(c)||{}).nosell);
+      const badSeats = (ex.seats||[]).filter(c => { const x = BY_CODE.get(c)||{}; return x.nosell || x.guest; });   // ghế không bán / ghế khách mời → xếp lại
       const sameTier = String(ex.tier)===tier && (ex.locked || (ex.wing||'')===wing) && Number(ex.qty)===qty;
       if (p.ga){
         p.action = sameTier ? (ex.name!==r.name || ex.phone!==r.phone || ex.stt!==r.stt || ex.sheetRow!==r.sheetRow || (ex.sheetCol||'')!==(r.sheetCol||'') ? 'info' : 'keep') : 'change';
@@ -1980,7 +2009,7 @@ function gsPlan(rows, otherIds=new Set(), otherLeg=''){
         const got = autoAssign(tier, qty, reserved, wing, own);
         if (!got){ p.errs.push(`Không còn đủ ${qty} ghế trống ở ${tierLabel(tier, wing)}`); plan.push(p); continue; }
         p.codes = got; p.action = 'change'; p.unlock = true;
-        p.why = badSeats.length && sameTier ? `ghế ${badSeats.join(', ')} nằm sau sân khấu (không bán) → xếp lại` : `đổi ${tierLabel(tier, wing)} × ${qty}`;
+        p.why = badSeats.length && sameTier ? `ghế ${badSeats.join(', ')} ${badSeats.some(c=>(BY_CODE.get(c)||{}).guest) ? 'thuộc khu khách mời' : 'nằm sau sân khấu (không bán)'} → xếp lại` : `đổi ${tierLabel(tier, wing)} × ${qty}`;
       }
     } else {
       if (!p.ga){
@@ -2102,13 +2131,13 @@ function renderAssign(body){
       if (!r.ok){ toast(r.conflict ? `Ghế ${r.conflict} vừa bị người khác lấy` : 'Mã vé này đã có trên web', 5000); renderSel(); return; }
       await saveResolution(i, 'manual', note);
       S.assign = null; S.sel = new Set(now); paintAll(); renderSel();
-      const w = await sheetWriteOrder(oid); toast(w, 5000);
+      toast('Đã xếp ghế — bấm "⬆ Cập nhật lên Google Sheet" để ghi lên sheet', 6000);
     } catch(e){ toast(writeErr(e), 5000); renderSel(); }
   };
 }
 function renderSheetStatus(){
   const m = S.sheetMeta;
-  $('mapSyncInfo').textContent = m && m.at ? `Đồng bộ lúc ${fmtTime(m.at)}${m.byName?` · ${m.byName}`:''}` : (m && m.url ? '' : 'Chưa gắn Google Sheet');
+  $('mapSyncInfo').textContent = m && m.at ? `Làm mới lúc ${fmtTime(m.at)}${m.byName?` · ${m.byName}`:''}` : (m && m.url ? '' : 'Chưa gắn Google Sheet');
   if (m && m.url && !$('gsUrl').value && document.activeElement !== $('gsUrl')) $('gsUrl').value = m.url;
   if (!S._syncing) gsStatus('');
   const hist = (m && m.history) || (m && m.at ? [{at:m.at, by:m.by, byName:m.byName}] : []);
@@ -2145,7 +2174,7 @@ async function saveSettings(){
 function renderSyncLog(){
   const hist = (S.sheetMeta && S.sheetMeta.history) || [];
   $('synctbl').innerHTML = `<tr><th>Thời gian</th><th>Người bấm</th><th>Loại</th><th>Kết quả</th></tr>` + (hist.length ? hist.map(h =>
-    `<tr><td class="small" style="white-space:nowrap">${fmtTime(h.at)}</td><td class="small"><b>${esc(nameOf(h.by, h.byName))}</b></td><td class="small">${h.push?'Cập nhật lên sheet':'Đồng bộ'}</td><td class="small">${esc(histText(h))}${!h.push && h.wrote?` · ghi ${h.wrote} ô`:''}</td></tr>`).join('')
+    `<tr><td class="small" style="white-space:nowrap">${fmtTime(h.at)}</td><td class="small"><b>${esc(nameOf(h.by, h.byName))}</b></td><td class="small">${h.push?'Cập nhật lên sheet':'Làm mới từ sheet'}</td><td class="small">${esc(histText(h))}${!h.push && h.wrote?` · ghi ${h.wrote} ô`:''}</td></tr>`).join('')
     : `<tr><td colspan="4" class="muted">Chưa có lần nào.</td></tr>`);
 }
 function renderLog(){
@@ -2314,7 +2343,7 @@ async function boot(){
   $('saveCfg').onclick = saveSettings; if ($('exportSa')) $('exportSa').onclick = exportToStandalone;
   $('modal').onclick = e => { if (e.target.id==='modal' && !$('modal').dataset.lock) $('modal').classList.remove('on'); };
   $('gsSync').onclick = () => gsSync(); $('mapSync').onclick = () => gsSync();
-  $('reallocBtn').onclick = () => reallocAll();
+  $('reallocBtn').onclick = () => reallocAll(); $('gsPush').onclick = () => gsPush(); $('mapPush').onclick = () => gsPush();
   $('gsUrl').addEventListener('change', () => { if (sheetIdFromUrl($('gsUrl').value)) gsSync(); });
   $('gsUrl').addEventListener('paste', () => setTimeout(()=>{ if (sheetIdFromUrl($('gsUrl').value)) gsSync(); }, 50));
 
@@ -2381,7 +2410,7 @@ function subscribeVenue(){
 async function prefillSheetUrl(){
   const other = Object.values(VENUES).find(v => v.key!==VENUE); if (!other || !S.db) return;
   try { const d = await S.db.doc(`v/${other.key}/meta/sheet`).get(); const u = d.exists && d.data().url;
-    if (u && !$('gsUrl').value){ $('gsUrl').value = u; gsStatus(`Đã điền sẵn link Google Sheet của Chặng ${esc(other.leg)} — bấm <b>Đồng bộ Google Sheet</b> để lấy đơn Chặng ${esc(V.leg)} (tab "Danh sách … ${esc(V.leg)}").`, 'muted'); } } catch(e){}
+    if (u && !$('gsUrl').value){ $('gsUrl').value = u; gsStatus(`Đã điền sẵn link Google Sheet của Chặng ${esc(other.leg)} — bấm <b>Làm mới từ Google Sheet</b> để lấy đơn Chặng ${esc(V.leg)} (tab "Danh sách … ${esc(V.leg)}").`, 'muted'); } } catch(e){}
 }
 function showBrand(){
   $('brand').innerHTML = `BT Tour | Chặng ${V.leg}<small>${V.venueName}</small>`;
