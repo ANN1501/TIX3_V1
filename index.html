@@ -52,6 +52,7 @@ label.f{display:block;margin-bottom:10px} label.f span{display:block;font-size:1
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px}
 .kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
 .kpi span{font-size:12px;color:var(--muted)}
+.kpi em{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:2px}
 /* map layout */
 .maplay{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
 @media (max-width:1000px){.maplay{grid-template-columns:1fr}}
@@ -207,6 +208,7 @@ code{background:#f1f0ec;padding:1px 5px;border-radius:5px;font-size:12px}
   <!-- STATS -->
   <section class="view" id="v-stats">
     <div class="card" style="margin-bottom:14px"><h2>Theo hạng vé</h2><div style="overflow:auto"><table id="stTier"></table></div></div>
+    <div class="card adminOnly" style="margin-bottom:14px" id="auditCard"><h2>Kiểm tra số ghế</h2><div id="auditBox"></div></div>
     <div class="card"><h2>Theo hàng ghế (khán đài)</h2><div style="overflow:auto"><table id="stRow"></table></div></div>
   </section>
 
@@ -1382,6 +1384,7 @@ async function doReallocAll(list){
       if (!sameSet(got, o.seats||[])) moved++;
       set(0.4 + 0.6*(i+1)/list.length);
     }
+    await cleanSeats(true);
     paintAll(); scheduleRender();
     await log('realloc', `Xếp lại toàn bộ vé ngồi: ${list.length} đơn, ${moved} đơn đổi ghế${fail.length?`, ${fail.length} đơn không đủ ghế: ${fail.join(', ')}`:''}`);
     gsStatus(`Đã xếp lại ${list.length} đơn (${moved} đơn đổi ghế)${fail.length?` · <b style="color:#b91c1c">${fail.length} đơn không đủ ghế</b>`:''}. Xem lại trên sơ đồ, ổn thì bấm <b>⬆ Cập nhật lên Google Sheet</b>.`);
@@ -1533,12 +1536,14 @@ function renderKpis(){
   try { updatePushBtn(); } catch(e){}
   const st = computeStats(); let tot={total:0,sold:0,held:0,comp:0,free:0,rev:0};
   for (const t of tiers()) if (t.kind==='seat'){ const x=st[t.key]; for (const k in tot) tot[k]+=x[k]||0; }
+  const g = st._guest, all = tot.total + g.total;
   $('kpis').innerHTML = `
-    <div class="kpi"><b>${fmt(tot.sold)}</b><span>Ghế đã bán / ${fmt(tot.total)}</span></div>
-    <div class="kpi"><b>${fmt(tot.held)}</b><span>Đang giữ chỗ</span></div>
-    <div class="kpi"><b>${fmt(tot.comp)}</b><span>Vé mời</span></div>
-    <div class="kpi"><b>${fmt(tot.free)}</b><span>Ghế còn trống</span></div>
-    ${st._guest.total ? `<div class="kpi"><b>${fmt(st._guest.used)} / ${fmt(st._guest.total)}</b><span>Ghế khách mời đã gán tên</span></div>` : ''}
+    <div class="kpi"><b>${fmt(all)}</b><span>Tổng số ghế</span>${g.total?`<em>${fmt(tot.total)} ghế bán + ${fmt(g.total)} ghế VIP</em>`:''}</div>
+    <div class="kpi"><b>${fmt(tot.total)}</b><span>Ghế được bán</span></div>
+    <div class="kpi"><b>${fmt(tot.sold)}</b><span>Ghế đã bán</span><em>còn trống ${fmt(tot.free)}</em></div>
+    ${g.total ? `<div class="kpi" style="border-color:#f9a8d4;background:#fdf2f8"><b style="color:#831843">${fmt(g.total)}</b><span>Ghế VIP đã block</span><em>${fmt(g.used)} ghế đã gán tên khách</em></div>` : ''}
+    ${tot.held ? `<div class="kpi"><b>${fmt(tot.held)}</b><span>Đang giữ chỗ</span></div>` : ''}
+    ${tot.comp ? `<div class="kpi"><b>${fmt(tot.comp)}</b><span>Vé mời (ngoài khu VIP)</span></div>` : ''}
     ${tiers().filter(t=>t.kind==='ga').map(t=>`<div class="kpi"><b>${fmt(st[t.key].sold)}${st[t.key].total?` / ${fmt(st[t.key].total)}`:''}</b><span>${esc(t.name)} (đứng)</span></div>`).join('')}
 `;
   for (const t of tiers()) if (t.kind==='ga'){ const el=$('ga-'+t.key); if(el){ const x=st[t.key]; el.textContent = `Đã bán ${fmt(x.sold)}${x.total?` / ${fmt(x.total)}`:''} · vé đứng`; } }
@@ -1554,6 +1559,9 @@ function renderStats(){
       <td>${bar(x)}</td></tr>`;
   }
   h += `<tr><td><b>Tổng</b></td><td></td><td class="num"><b>${fmt(T.total)}</b></td><td class="num"><b>${fmt(T.sold)}</b></td><td class="num">${fmt(T.held)}</td><td class="num">${fmt(T.comp)}</td><td class="num">${fmt(T.blocked)}</td><td class="num"><b>${fmt(T.free)}</b></td><td>${bar(T)}</td></tr>`;
+  if (st._guest.total){ const g = st._guest;
+    h += `<tr style="background:#fdf2f8"><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f9a8d4;margin-right:6px"></i><b>Ghế VIP đã block</b></td><td class="small muted">Khách mời</td><td class="num">${fmt(g.total)}</td><td colspan="5" class="small muted">${fmt(g.used)} ghế đã gán tên khách · không tính vào số bán</td><td></td></tr>
+      <tr><td><b>Tổng tất cả ghế</b></td><td></td><td class="num"><b>${fmt(T.total + g.total)}</b></td><td colspan="6"></td></tr>`; }
   $('stTier').innerHTML = h;
   // per row (stands + TDG), in sheet order
   const rows = [...ROWS].sort((a,b)=> (a.seats[0].k==='g')-(b.seats[0].k==='g') || a.seats[0].y-b.seats[0].y || a.seats[0].x-b.seats[0].x);
@@ -1565,6 +1573,21 @@ function renderStats(){
     r += `<tr><td><b>${esc(row.key)}</b> <span class="small muted">${esc(WING_LABEL[wingOf(row.seats[0])]||'TRÊN ĐỈNH GIÓ')}</span></td><td class="num">${x.total}</td><td class="num">${x.sold}</td><td class="num">${x.held}</td><td class="num">${x.comp}</td><td class="num">${x.blocked}</td><td class="num"><b>${x.free}</b></td><td>${bar(x)}</td></tr>`;
   }
   $('stRow').innerHTML = r;
+  if (S.isAdmin) renderAudit();
+}
+function renderAudit(){
+  const {bad, fix, src} = auditSeats(); const ts = tiers().filter(t=>t.kind!=='ga');
+  let h = `<p class="small" style="margin-top:0">Ghế đang tính (đã bán, giữ, mời, khóa — không gồm khu khách mời) chia theo nguồn. Ghế thừa là ghế còn đánh dấu trên sơ đồ nhưng đơn của nó đã hủy / đã đổi sang ghế khác.</p>
+    <div style="overflow:auto"><table><tr><th>Nguồn</th>${ts.map(t=>`<th class="num">${esc(t.name)}</th>`).join('')}<th class="num">Cộng</th></tr>`;
+  const keys = [...src.keys()].sort((a,b)=> (a.startsWith('⚠')?1:0)-(b.startsWith('⚠')?1:0) || a.localeCompare(b));
+  for (const k of keys){ const m = src.get(k); const sum = ts.reduce((a,t)=>a+(m[t.key]||0),0);
+    h += `<tr${k.startsWith('⚠')?' style="color:#b91c1c;font-weight:600"':''}><td>${esc(k)}</td>${ts.map(t=>`<td class="num">${m[t.key]?fmt(m[t.key]):''}</td>`).join('')}<td class="num"><b>${fmt(sum)}</b></td></tr>`; }
+  h += `</table></div>`;
+  h += bad.length || fix.length
+    ? `<p class="small" style="color:#b91c1c"><b>${bad.length} ghế thừa</b>${fix.length?` · ${fix.length} ghế sai trạng thái`:''}: ${esc(compactCodes(bad.map(b=>b.code)))}</p><div class="actions">${S.canWrite?'<button class="btn pri" id="cleanBtn">🧹 Dọn ghế thừa</button>':''}</div>`
+    : `<p class="small" style="color:#15803d"><b>✓ Ghế trên sơ đồ khớp với danh sách đơn.</b></p>`;
+  $('auditBox').innerHTML = h;
+  const b = $('cleanBtn'); if (b) b.onclick = async () => { b.disabled = true; try { await cleanSeats(); } catch(e){ toast(writeErr(e), 5000); } };
 }
 function bar(x){
   const t = x.total || 1; const p = v => (100*(v||0)/t).toFixed(1)+'%';
@@ -1822,7 +1845,7 @@ async function gsSync({quiet=false}={}){
     prog.style.display='block'; bar.style.width='5%';
     while (S._migrating) await sleep(300);
     if (needsMigration()){ gsStatus('Đang cập nhật mã ghế cũ…'); await migrateLegacy(true); }
-    await repairOrphans();
+    await repairOrphans(); if (S.isAdmin) await cleanSeats(true);
     const {tabInfo, rows} = await readSheet(id);
     bar.style.width='20%';
 
@@ -2274,6 +2297,45 @@ async function repairOrphans(){
     const r = await claimSeats(lost, code => ({code, tier:BY_CODE.get(code).tier, status:o.status, order:o.id, name:o.name||'', phone:o.phone||'', note:o.note||'', by:S.me||'', byName:S.myName||'', at:Date.now()}));
     await log('repair', r.ok ? `Khôi phục ghế cho đơn ${o.id}: ${compactCodes(lost)}` : `Đơn ${o.id}: ghế ${r.conflict} đang thuộc đơn khác — cần đổi ghế`);
   }
+}
+
+/** Đối chiếu ghế ↔ đơn: ghế chỉ được tính khi thuộc một đơn còn hiệu lực và đơn đó có ghi ghế này. */
+const ACTIVE = o => o && !['cancelled','excluded'].includes(o.status);
+function auditSeats(){
+  const bad = [], fix = [];   // bad: ghế thừa (xóa); fix: ghế đúng đơn nhưng sai trạng thái
+  const owner = new Map();    // ghế → đơn đầu tiên (theo thời gian) có ghi ghế đó
+  [...S.orders.values()].filter(ACTIVE).sort((a,b)=>(a.at||0)-(b.at||0)).forEach(o => (o.seats||[]).forEach(c => { if (!owner.has(c)) owner.set(c, o.id); }));
+  for (const [code, d] of S.seatDocs){
+    if (!d || !d.status || !BY_CODE.has(code)) continue;
+    if (d.status==='blocked' && !d.order) continue;
+    const o = S.orders.get(d.order);
+    let why = '';
+    if (!d.order || !o) why = 'không có đơn';
+    else if (!ACTIVE(o)) why = `đơn ${o.id} đã hủy`;
+    else if (!(o.seats||[]).includes(code)) why = `đơn ${o.id} không còn ghế này`;
+    if (why){ bad.push({code, tier:BY_CODE.get(code).tier, why, order:d.order||''}); continue; }
+    if (d.status !== o.status) fix.push({code, status:o.status});
+  }
+  // nguồn của ghế đang tính
+  const src = new Map(); const add = (k, tier) => { if (!src.has(k)) src.set(k, {}); const m = src.get(k); m[tier] = (m[tier]||0)+1; };
+  for (const [code, d] of S.seatDocs){
+    if (!d || !d.status || !BY_CODE.has(code) || BY_CODE.get(code).guest) continue;
+    const tier = BY_CODE.get(code).tier; const o = S.orders.get(d.order);
+    if (bad.some(b=>b.code===code)) add('⚠ Ghế thừa (không thuộc đơn nào còn hiệu lực)', tier);
+    else if (d.status==='blocked') add('Khóa trên web', tier);
+    else if (o.src==='sheet') add(`Google Sheet · ${o.sheetTab||'?'}${o.dupOf?' (dòng trùng mã đã chấp nhận)':''}${d.status!=='sold'?' · '+((STATUS[d.status]||{}).label||d.status):''}`, tier);
+    else add(`Tạo trên web · ${(STATUS[d.status]||{}).label||d.status}`, tier);
+  }
+  return {bad, fix, src};
+}
+async function cleanSeats(quiet){
+  const {bad, fix} = auditSeats();
+  for (const b of bad){ await withRetry(()=>S.db.collection(P.seats).doc(b.code).delete()); S.seatDocs.delete(b.code); paintSeat(b.code); }
+  for (const f of fix){ await withRetry(()=>S.db.collection(P.seats).doc(f.code).update({status:f.status})); const d=S.seatDocs.get(f.code); if (d) d.status=f.status; paintSeat(f.code); }
+  if (bad.length || fix.length) await log('repair', `Dọn ghế lệch: bỏ ${bad.length} ghế thừa${bad.length?` [${compactCodes(bad.map(b=>b.code))}]`:''}${fix.length?`, sửa trạng thái ${fix.length} ghế`:''}`);
+  if (!quiet) toast(bad.length || fix.length ? `Đã bỏ ${bad.length} ghế thừa · sửa ${fix.length} ghế` : 'Số ghế đã khớp với danh sách đơn', 5000);
+  scheduleRender();
+  return bad.length + fix.length;
 }
 
 /* ---------- render orchestration ---------- */
