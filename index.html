@@ -1086,7 +1086,7 @@ function mapEvents(){
     if (dl){ tip.innerHTML = `<b>${esc(dl)}</b>`; tip.style.display='block'; tip.style.left = Math.min(e.clientX+14, innerWidth-270)+'px'; tip.style.top = (e.clientY+14)+'px'; return; }
     if (!g){ tip.style.display='none'; return; }
     const code = g.dataset.code, s = BY_CODE.get(code), d = S.seatDocs.get(code);
-    let h = `${s.guest?'<b style="color:#f9a8d4">VÉ KHÁCH MỜI</b><br>':''}<b>${esc(code)}</b> · ${esc(tierOf(s.tier).name)}${s.nosell?' · <b style="color:#ff6b6b">KHÔNG BÁN</b>':''}`;
+    let h = `${s.guest?'<b style="color:#f9a8d4">HÀNG GHẾ BỊ KHÓA</b><br>':''}<b>${esc(code)}</b> · ${esc(tierOf(s.tier).name)}${s.nosell?' · <b style="color:#ff6b6b">KHÔNG BÁN</b>':''}`;
     if (d && d.status){ h += `<br>${esc(STATUS[d.status].label)}${d.name?` – ${esc(d.name)}`:''}${d.phone?` · ${esc(d.phone)}`:''}${d.order?`<br>Mã vé: <b>${esc(d.order)}</b>`:''}`; }
     else h += s.nosell ? '<br>Ghế phía sau đường sân khấu — không bán' : '<br>Còn trống';
     tip.innerHTML = h; tip.style.display='block';
@@ -1215,7 +1215,7 @@ function renderSel(){
     <div class="selcodes">${esc(compactCodes(codes))}</div>`;
   if (free.length){
     h += `<h3 style="margin-top:4px">${free.length} ghế trống</h3>
-      ${gFree.length ? `<div class="small" style="background:#fdf2f8;border:1px solid #f9a8d4;color:#831843;border-radius:8px;padding:6px 8px;margin-bottom:6px"><b>VÉ KHÁCH MỜI</b> — ${gFree.length===free.length?'các ghế này':gFree.length+' ghế'} dành cho khách mời, chỉ ghi được dạng <b>Vé mời</b>.</div>` : ''}
+      ${gFree.length ? `<div class="small" style="background:#fdf2f8;border:1px solid #f9a8d4;color:#831843;border-radius:8px;padding:6px 8px;margin-bottom:6px"><b>HÀNG GHẾ BỊ KHÓA</b> — ${gFree.length===free.length?'các ghế này':gFree.length+' ghế'} dành cho khách mời, chỉ ghi được dạng <b>Vé mời</b>.</div>` : ''}
       <label class="f"><span>${gFree.length ? 'Tên khách mời' : 'Tên khách / đơn vị'}</span><input type="text" id="fName"></label>
       <div class="row2"><label class="f"><span>SĐT</span><input type="text" id="fPhone"></label>
       <label class="f"><span>Loại</span><select id="fStatus">${gFree.length ? '<option value="comp">Vé mời</option>' : '<option value="sold">Đã bán</option><option value="held">Giữ chỗ</option><option value="comp">Vé mời</option>'}</select></label></div>
@@ -1521,9 +1521,9 @@ function confirmBox(title, text, onYes){
 function computeStats(){
   const st = {};
   for (const t of tiers()) st[t.key] = {total:0, sold:0, held:0, comp:0, blocked:0};
-  st._guest = {total:0, used:0};
+  st._guest = {total:0, used:0, by:{}};
   for (const s of SEATS){ const x = st[s.tier]; if(!x) continue; const v = statusOf(s.code); if (s.nosell && !v) continue;
-    if (s.guest){ st._guest.total++; if (v) st._guest.used++; continue; }
+    if (s.guest){ st._guest.total++; if (v) st._guest.used++; const b = st._guest.by[s.tier] || (st._guest.by[s.tier] = {total:0, used:0}); b.total++; if (v) b.used++; continue; }
     x.total++; if (v) x[v]++; }
   for (const t of tiers()) if (t.kind==='ga'){
     const x = st[t.key]; x.total = Number(t.cap)||0;
@@ -1532,16 +1532,17 @@ function computeStats(){
   for (const k in st){ if (k==='_guest') continue; const x=st[k]; x.free = Math.max(0, x.total - x.sold - x.held - x.comp - x.blocked); x.rev = x.sold * (Number(tierOf(k).price)||0); }
   return st;
 }
+const vipSplit = g => tiers().filter(t=>g.by[t.key]).map(t=>`${esc(t.name)} ${fmt(g.by[t.key].total)}`).join(' · ');
 function renderKpis(){
   try { updatePushBtn(); } catch(e){}
-  const st = computeStats(); let tot={total:0,sold:0,held:0,comp:0,free:0,rev:0};
+  const st = computeStats(); let tot={total:0,sold:0,held:0,comp:0,blocked:0,free:0,rev:0};
   for (const t of tiers()) if (t.kind==='seat'){ const x=st[t.key]; for (const k in tot) tot[k]+=x[k]||0; }
   const g = st._guest, all = tot.total + g.total;
   $('kpis').innerHTML = `
-    <div class="kpi"><b>${fmt(all)}</b><span>Tổng số ghế</span>${g.total?`<em>${fmt(tot.total)} ghế bán + ${fmt(g.total)} ghế VIP</em>`:''}</div>
-    <div class="kpi"><b>${fmt(tot.total)}</b><span>Ghế được bán</span></div>
-    <div class="kpi"><b>${fmt(tot.sold)}</b><span>Ghế đã bán</span><em>còn trống ${fmt(tot.free)}</em></div>
-    ${g.total ? `<div class="kpi" style="border-color:#f9a8d4;background:#fdf2f8"><b style="color:#831843">${fmt(g.total)}</b><span>Ghế VIP đã block</span><em>${fmt(g.used)} ghế đã gán tên khách</em></div>` : ''}
+    <div class="kpi"><b>${fmt(all)}</b><span>Tổng số ghế</span></div>
+    <div class="kpi"><b>${fmt(tot.sold)}</b><span>Ghế đã bán</span></div>
+    <div class="kpi" style="border-color:#f9a8d4;background:#fdf2f8"><b style="color:#831843">${fmt(tot.blocked + g.total)}</b><span>Ghế khóa</span>${g.total?`<em>VIP block: ${vipSplit(g)}</em>`:''}${tot.blocked?`<em>Khóa tay: ${fmt(tot.blocked)}</em>`:''}</div>
+    <div class="kpi"><b>${fmt(tot.free)}</b><span>Ghế còn trống</span></div>
     ${tot.held ? `<div class="kpi"><b>${fmt(tot.held)}</b><span>Đang giữ chỗ</span></div>` : ''}
     ${tot.comp ? `<div class="kpi"><b>${fmt(tot.comp)}</b><span>Vé mời (ngoài khu VIP)</span></div>` : ''}
     ${tiers().filter(t=>t.kind==='ga').map(t=>`<div class="kpi"><b>${fmt(st[t.key].sold)}${st[t.key].total?` / ${fmt(st[t.key].total)}`:''}</b><span>${esc(t.name)} (đứng)</span></div>`).join('')}
@@ -1550,18 +1551,19 @@ function renderKpis(){
 }
 function renderStats(){
   const st = computeStats();
-  let h = `<tr><th>Hạng vé</th><th>Loại</th><th class="num">Tổng</th><th class="num">Đã bán</th><th class="num">Giữ chỗ</th><th class="num">Vé mời</th><th class="num">Khóa</th><th class="num">Còn trống</th><th>Tiến độ</th></tr>`;
-  const T = {total:0,sold:0,held:0,comp:0,blocked:0,free:0,rev:0};
+  const g = st._guest || {total:0, used:0, by:{}}; const PINK = 'background:#fdf2f8;color:#831843';
+  let h = `<tr><th>Hạng vé</th><th>Loại</th><th class="num">Tổng ghế</th><th class="num">Đã bán</th><th class="num">Giữ chỗ</th><th class="num">Vé mời</th><th class="num" style="${PINK}">Khóa</th><th class="num">Còn trống</th><th>Tiến độ</th></tr>`;
+  const T = {total:0,sold:0,held:0,comp:0,blocked:0,free:0,vip:0};
   for (const t of tiers()){
-    const x = st[t.key]; for (const k in T) T[k]+=x[k]||0;
-    h += `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${esc(t.color)};margin-right:6px"></i><b>${esc(t.name)}</b></td><td class="small muted">${t.kind==='ga'?'Vé đứng':'Vé ngồi'}</td>
-      <td class="num">${t.kind==='ga'&&!x.total?'<span class="muted">chưa đặt</span>':fmt(x.total)}</td><td class="num">${fmt(x.sold)}</td><td class="num">${fmt(x.held)}</td><td class="num">${fmt(x.comp)}</td><td class="num">${fmt(x.blocked)}</td><td class="num"><b>${t.kind==='ga'&&!x.total?'—':fmt(x.free)}</b></td>
+    const x0 = st[t.key]; const gv = g.by[t.key] || {total:0, used:0}; const ga = t.kind==='ga';
+    const x = {...x0, total:x0.total + gv.total, blocked:x0.blocked + gv.total}; x.vip = gv.total;
+    for (const k in T) T[k]+=x[k]||0;
+    const khoa = fmt(x.blocked);
+    h += `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${esc(t.color)};margin-right:6px"></i><b>${esc(t.name)}</b></td><td class="small muted">${ga?'Vé đứng':'Vé ngồi'}</td>
+      <td class="num">${ga&&!x.total?'<span class="muted">chưa đặt</span>':fmt(x.total)}</td><td class="num">${fmt(x.sold)}</td><td class="num">${fmt(x.held)}</td><td class="num">${fmt(x.comp)}</td><td class="num" style="${PINK}">${khoa}</td><td class="num"><b>${ga&&!x.total?'—':fmt(x.free)}</b></td>
       <td>${bar(x)}</td></tr>`;
   }
-  h += `<tr><td><b>Tổng</b></td><td></td><td class="num"><b>${fmt(T.total)}</b></td><td class="num"><b>${fmt(T.sold)}</b></td><td class="num">${fmt(T.held)}</td><td class="num">${fmt(T.comp)}</td><td class="num">${fmt(T.blocked)}</td><td class="num"><b>${fmt(T.free)}</b></td><td>${bar(T)}</td></tr>`;
-  if (st._guest.total){ const g = st._guest;
-    h += `<tr style="background:#fdf2f8"><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f9a8d4;margin-right:6px"></i><b>Ghế VIP đã block</b></td><td class="small muted">Khách mời</td><td class="num">${fmt(g.total)}</td><td colspan="5" class="small muted">${fmt(g.used)} ghế đã gán tên khách · không tính vào số bán</td><td></td></tr>
-      <tr><td><b>Tổng tất cả ghế</b></td><td></td><td class="num"><b>${fmt(T.total + g.total)}</b></td><td colspan="6"></td></tr>`; }
+  h += `<tr style="border-top:2px solid var(--line)"><td><b>Tổng</b></td><td></td><td class="num"><b>${fmt(T.total)}</b></td><td class="num"><b>${fmt(T.sold)}</b></td><td class="num">${fmt(T.held)}</td><td class="num">${fmt(T.comp)}</td><td class="num" style="${PINK}"><b>${fmt(T.blocked)}</b></td><td class="num"><b>${fmt(T.free)}</b></td><td>${bar(T)}</td></tr>`;
   $('stTier').innerHTML = h;
   // per row (stands + TDG), in sheet order
   const rows = [...ROWS].sort((a,b)=> (a.seats[0].k==='g')-(b.seats[0].k==='g') || a.seats[0].y-b.seats[0].y || a.seats[0].x-b.seats[0].x);
@@ -1591,7 +1593,7 @@ function renderAudit(){
 }
 function bar(x){
   const t = x.total || 1; const p = v => (100*(v||0)/t).toFixed(1)+'%';
-  return `<div class="bar" title="${x.sold} bán · ${x.held} giữ · ${x.comp} mời"><i style="width:${p(x.sold)};background:var(--sold)"></i><i style="width:${p(x.held)};background:var(--held)"></i><i style="width:${p(x.comp)};background:var(--comp)"></i><i style="width:${p(x.blocked)};background:var(--blocked)"></i></div>`;
+  return `<div class="bar" title="${x.sold} bán · ${x.held} giữ · ${x.comp} mời"><i style="width:${p(x.sold)};background:var(--sold)"></i><i style="width:${p(x.held)};background:var(--held)"></i><i style="width:${p(x.comp)};background:var(--comp)"></i><i style="width:${p(x.blocked)};background:#f9a8d4"></i></div>`;
 }
 
 /* ---------- orders ---------- */
@@ -2373,7 +2375,7 @@ function legendCounts(){
   const f = document.querySelector('[data-lc="free"]'); if (f) f.textContent = ` (${fmt(free)})`;
 }
 function legend(){
-  const items = [[BASE.b.fill,'Trống – ghế xanh'],[BASE.y.fill,'Trống – ghế vàng'],[BASE.r.fill,'Trống – ghế đỏ'],[BASE.g.fill,'Trống – TRÊN ĐỈNH GIÓ'],[GUEST.fill,'Khách mời (trống)'],
+  const items = [[BASE.b.fill,'Trống – ghế xanh'],[BASE.y.fill,'Trống – ghế vàng'],[BASE.r.fill,'Trống – ghế đỏ'],[BASE.g.fill,'Trống – TRÊN ĐỈNH GIÓ'],[GUEST.fill,'HÀNG GHẾ BỊ KHÓA'],
     [STATUS.sold.color,'Đã bán','sold'],[STATUS.held.color,'Giữ chỗ','held'],[STATUS.comp.color,'Vé mời','comp'],[STATUS.blocked.color,'Khóa','blocked'],['repeating-linear-gradient(45deg,#868e96 0 3px,#cfd4da 3px 6px)','Cột / trụ'],['repeating-linear-gradient(0deg,#9aa3ad 0 1px,#eceff3 1px 5px)','Cầu thang'],[DECO.s.color,'Tay vịn'],[DECO.w.color,'Lan can'],[DECO.u.color,'Bục'],[DECO.d.color,'Cửa']];
   $('legend').innerHTML = `<span><b>Trống</b><span data-lc="free"></span>:</span>` + items.map(([c,l,k])=>`<span><i style="background:${c}"></i>${l}${k?`<b data-lc="${k}"></b>`:''}</span>`).join('');
 }
