@@ -1562,6 +1562,17 @@ function renderStats(){
     h += `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${esc(t.color)};margin-right:6px"></i><b>${esc(t.name)}</b></td><td class="small muted">${ga?'Vé đứng':'Vé ngồi'}</td>
       <td class="num">${ga&&!x.total?'<span class="muted">chưa đặt</span>':fmt(x.total)}</td><td class="num">${fmt(x.sold)}</td><td class="num">${fmt(x.held)}</td><td class="num" style="${PINK}">${khoa}</td><td class="num"><b>${ga&&!x.total?'—':fmt(x.free)}</b></td>
       <td>${bar(x)}</td></tr>`;
+    if (!ga){ // tách theo cánh
+      const byW = new Map();
+      for (const s of SEATS){ if (s.tier!==t.key) continue; const v = statusOf(s.code); if (s.nosell && !v) continue;
+        const w = WING_LABEL[wingOf(s)]; if (!w) continue;
+        if (!byW.has(w)) byW.set(w, {total:0, sold:0, held:0, comp:0, blocked:0});
+        const y = byW.get(w); y.total++; if (s.guest) y.blocked++; else if (v) y[v]++; }
+      if (byW.size > 1)
+        for (const w of ['Cánh trái','Cánh phải', ...[...byW.keys()].filter(k=>k!=='Cánh trái'&&k!=='Cánh phải')]){ const y = byW.get(w); if (!y) continue;
+          y.free = y.total - y.sold - y.held - y.comp - y.blocked;
+          h += `<tr class="small"><td style="padding-left:28px">${esc(t.name)} – ${esc(w.toLowerCase())}</td><td></td><td class="num">${fmt(y.total)}</td><td class="num">${fmt(y.sold)}</td><td class="num">${fmt(y.held)}</td><td class="num" style="${PINK}">${fmt(y.blocked)}</td><td class="num"><b>${fmt(y.free)}</b></td><td>${bar(y)}</td></tr>`; }
+    }
   }
   h += `<tr style="border-top:2px solid var(--line)"><td><b>Tổng</b></td><td></td><td class="num"><b>${fmt(T.total)}</b></td><td class="num"><b>${fmt(T.sold)}</b></td><td class="num">${fmt(T.held)}</td><td class="num" style="${PINK}"><b>${fmt(T.blocked)}</b></td><td class="num"><b>${fmt(T.free)}</b></td><td>${bar(T)}</td></tr>`;
   $('stTier').innerHTML = h;
@@ -1578,7 +1589,9 @@ function renderStats(){
   const cells = (x, bold) => { const B = v => bold ? `<b>${fmt(v)}</b>` : fmt(v);
     return `<td class="num">${B(x.total)}</td><td class="num">${B(x.sold)}</td><td class="num">${B(x.held)}</td><td class="num" style="${PK}">${B(x.blocked)}</td><td class="num"><b>${fmt(x.free)}</b></td><td>${bar(x)}</td>`; };
   let r = `<tr><th>Hàng</th><th class="num">Tổng ghế</th><th class="num">Đã bán</th><th class="num">Giữ</th><th class="num" style="${PK}">Khóa</th><th class="num">Còn trống</th><th>Tiến độ</th></tr>`;
-  // tóm tắt theo khu
+  // tóm tắt theo khu (cánh trái → cánh phải → TRÊN ĐỈNH GIÓ)
+  const WO = w => ({'Cánh trái':0,'Cánh phải':1}[w] ?? 2);
+  const gsorted = [...groups].sort((a,b)=>WO(a[0])-WO(b[0])); groups.clear(); gsorted.forEach(([k,v])=>groups.set(k,v));
   for (const [w, gr] of groups) r += `<tr style="background:#f3f4f6"><td><b>${esc(w)}</b> <span class="small muted">(${gr.rows.length} hàng)</span></td>${cells(gr.sum, true)}</tr>`;
   for (const [w, gr] of groups){
     r += `<tr><td colspan="7" style="padding-top:16px;border-bottom:2px solid var(--line)"><b style="font-size:13px">${esc(w)}</b></td></tr>`;
