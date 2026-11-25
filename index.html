@@ -662,7 +662,7 @@ const VENUES = {
     standDist: s => s.y<15 ? 14-s.y : s.y-46, gioDist: s => 17-s.x, wingTop:'L', labelY:[2.4,57.6],
     guest: s => { const r = s.code.replace(/-\d+$/,'');
       return (/^(T12|RED)-[A-E]$/.test(r) && (s.x<=11 || (s.x>=76 && s.x<=80))) || /^GIO-[ABC]$/.test(r) || (/^GIO-[DEFGH]$/.test(r) && s.n>=11 && s.n<=17)
-        || (/^(T12|RED)-[N-R]$/.test(r) && s.x<=11) || (/^(T12|RED)-[J-R]$/.test(r) && s.x>=73 && s.x<=80); },
+        || (/^(T12|RED)-[N-R]$/.test(r) && (s.x<=11 || (s.x>=38 && s.x<=42) || (s.x>=73 && s.x<=80))); },
     here:['tay ho'], other:['rach mieu'], codeHere:/HN\d/, codeOther:/HCM\d/,
     tabHere:/(^|[^a-z])hn([^a-z]|$)|ha noi|tay ho/, tabOther:/hcm|ho chi minh|rach mieu/ }
 };
@@ -1341,6 +1341,19 @@ async function saveSeatEdits(items){
   return changed;
 }
 /* ---------- khu KHÁCH MỜI (Quản lý chỉnh) ---------- */
+/* 25/11: Chặng HN — chuyển khóa VIP từ J/K/L (x 73–80) sang N–R (x 38–42); chạy 1 lần khi Quản lý mở web */
+let _migHN = false;
+async function migrateGuestHN(){
+  if (_migHN || VENUE!=='tayho' || !S.isAdmin || !S.canWrite || !S.cfg || !Array.isArray(S.cfg.guest) || S.cfg.migGuest251125) return;
+  _migHN = true;
+  const row = c => (c.replace(/-\d+$/,'').split('-')[1]||'');
+  const cur = new Set(S.cfg.guest);
+  LAYOUT.seats.forEach(s0 => { const r = s0.code.replace(/-\d+$/,''); if (!/^(T12|RED)-/.test(r)) return; const rw = row(s0.code);
+    if (/^[JKL]$/.test(rw) && s0.x>=73 && s0.x<=80) cur.delete(s0.code);
+    if (/^[N-R]$/.test(rw) && s0.x>=38 && s0.x<=42) cur.add(s0.code); });
+  try { await withRetry(()=>S.db.doc(P.cfg).set({...S.cfg, guest:[...cur].sort(), migGuest251125:true, at:Date.now(), by:S.me||''}));
+    await log('guest', 'Chuyển hàng ghế bị khóa: bỏ J/K/L (29–36, 9–16), khóa N/O/P 30–34 và Q/R 28–32'); } catch(e){ _migHN = false; }
+}
 async function setGuest(codes, on){
   const cur = new Set(SEATS.filter(s=>s.guest).map(s=>s.orig));
   const list = codes.map(c=>BY_CODE.get(c)).filter(s=>s && !s.nosell);
@@ -2521,6 +2534,7 @@ function subscribeVenue(){
   S.unsubs.push(db.collection(P.log).orderBy('at','desc').limit(300).onSnapshot(snap => { S.logs = snap.docs.map(d=>d.data()); scheduleRender(); }, ()=>{}));
   S.unsubs.push(db.doc(P.cfg).onSnapshot(snap => {
     S.cfg = snap.exists ? snap.data() : null;
+    migrateGuestHN();
     if (JSON.stringify((S.cfg && S.cfg.seatEdits) || {}) + '|' + (S.cfg && Array.isArray(S.cfg.guest) ? [...S.cfg.guest].sort().join(',') : 'def') !== (S._editSig || '{}|def')){ applySeatEdits(); buildMap(); paintAll(); legend(); renderSel(); }
     paintWings();
     $('ofTier').innerHTML = `<option value="">Mọi hạng vé</option>` + tiers().map(t=>`<option value="${esc(t.key)}">${esc(t.name)}</option>`).join('');
